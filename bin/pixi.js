@@ -20739,7 +20739,7 @@ Text.prototype.determineFontProperties = function (fontStyle)
             }
         }
 
-        properties.descent = i - baseline;
+        properties.descent = i - baseline + 1;
         properties.fontSize = properties.ascent + properties.descent;
 
         Text.fontPropertiesCache[fontStyle] = properties;
