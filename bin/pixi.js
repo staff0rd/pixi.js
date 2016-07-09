@@ -1267,7 +1267,7 @@
 }());
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"_process":4}],2:[function(require,module,exports){
+},{"_process":24}],2:[function(require,module,exports){
 /**
  * Bit twiddling hacks for JavaScript.
  *
@@ -1474,1752 +1474,6 @@ exports.nextCombination = function(v) {
 
 
 },{}],3:[function(require,module,exports){
-(function (process){
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-// resolves . and .. elements in a path array with directory names there
-// must be no slashes, empty elements, or device names (c:\) in the array
-// (so also no leading and trailing slashes - it does not distinguish
-// relative and absolute paths)
-function normalizeArray(parts, allowAboveRoot) {
-  // if the path tries to go above the root, `up` ends up > 0
-  var up = 0;
-  for (var i = parts.length - 1; i >= 0; i--) {
-    var last = parts[i];
-    if (last === '.') {
-      parts.splice(i, 1);
-    } else if (last === '..') {
-      parts.splice(i, 1);
-      up++;
-    } else if (up) {
-      parts.splice(i, 1);
-      up--;
-    }
-  }
-
-  // if the path is allowed to go above the root, restore leading ..s
-  if (allowAboveRoot) {
-    for (; up--; up) {
-      parts.unshift('..');
-    }
-  }
-
-  return parts;
-}
-
-// Split a filename into [root, dir, basename, ext], unix version
-// 'root' is just a slash, or nothing.
-var splitPathRe =
-    /^(\/?|)([\s\S]*?)((?:\.{1,2}|[^\/]+?|)(\.[^.\/]*|))(?:[\/]*)$/;
-var splitPath = function(filename) {
-  return splitPathRe.exec(filename).slice(1);
-};
-
-// path.resolve([from ...], to)
-// posix version
-exports.resolve = function() {
-  var resolvedPath = '',
-      resolvedAbsolute = false;
-
-  for (var i = arguments.length - 1; i >= -1 && !resolvedAbsolute; i--) {
-    var path = (i >= 0) ? arguments[i] : process.cwd();
-
-    // Skip empty and invalid entries
-    if (typeof path !== 'string') {
-      throw new TypeError('Arguments to path.resolve must be strings');
-    } else if (!path) {
-      continue;
-    }
-
-    resolvedPath = path + '/' + resolvedPath;
-    resolvedAbsolute = path.charAt(0) === '/';
-  }
-
-  // At this point the path should be resolved to a full absolute path, but
-  // handle relative paths to be safe (might happen when process.cwd() fails)
-
-  // Normalize the path
-  resolvedPath = normalizeArray(filter(resolvedPath.split('/'), function(p) {
-    return !!p;
-  }), !resolvedAbsolute).join('/');
-
-  return ((resolvedAbsolute ? '/' : '') + resolvedPath) || '.';
-};
-
-// path.normalize(path)
-// posix version
-exports.normalize = function(path) {
-  var isAbsolute = exports.isAbsolute(path),
-      trailingSlash = substr(path, -1) === '/';
-
-  // Normalize the path
-  path = normalizeArray(filter(path.split('/'), function(p) {
-    return !!p;
-  }), !isAbsolute).join('/');
-
-  if (!path && !isAbsolute) {
-    path = '.';
-  }
-  if (path && trailingSlash) {
-    path += '/';
-  }
-
-  return (isAbsolute ? '/' : '') + path;
-};
-
-// posix version
-exports.isAbsolute = function(path) {
-  return path.charAt(0) === '/';
-};
-
-// posix version
-exports.join = function() {
-  var paths = Array.prototype.slice.call(arguments, 0);
-  return exports.normalize(filter(paths, function(p, index) {
-    if (typeof p !== 'string') {
-      throw new TypeError('Arguments to path.join must be strings');
-    }
-    return p;
-  }).join('/'));
-};
-
-
-// path.relative(from, to)
-// posix version
-exports.relative = function(from, to) {
-  from = exports.resolve(from).substr(1);
-  to = exports.resolve(to).substr(1);
-
-  function trim(arr) {
-    var start = 0;
-    for (; start < arr.length; start++) {
-      if (arr[start] !== '') break;
-    }
-
-    var end = arr.length - 1;
-    for (; end >= 0; end--) {
-      if (arr[end] !== '') break;
-    }
-
-    if (start > end) return [];
-    return arr.slice(start, end - start + 1);
-  }
-
-  var fromParts = trim(from.split('/'));
-  var toParts = trim(to.split('/'));
-
-  var length = Math.min(fromParts.length, toParts.length);
-  var samePartsLength = length;
-  for (var i = 0; i < length; i++) {
-    if (fromParts[i] !== toParts[i]) {
-      samePartsLength = i;
-      break;
-    }
-  }
-
-  var outputParts = [];
-  for (var i = samePartsLength; i < fromParts.length; i++) {
-    outputParts.push('..');
-  }
-
-  outputParts = outputParts.concat(toParts.slice(samePartsLength));
-
-  return outputParts.join('/');
-};
-
-exports.sep = '/';
-exports.delimiter = ':';
-
-exports.dirname = function(path) {
-  var result = splitPath(path),
-      root = result[0],
-      dir = result[1];
-
-  if (!root && !dir) {
-    // No dirname whatsoever
-    return '.';
-  }
-
-  if (dir) {
-    // It has a dirname, strip trailing slash
-    dir = dir.substr(0, dir.length - 1);
-  }
-
-  return root + dir;
-};
-
-
-exports.basename = function(path, ext) {
-  var f = splitPath(path)[2];
-  // TODO: make this comparison case-insensitive on windows?
-  if (ext && f.substr(-1 * ext.length) === ext) {
-    f = f.substr(0, f.length - ext.length);
-  }
-  return f;
-};
-
-
-exports.extname = function(path) {
-  return splitPath(path)[3];
-};
-
-function filter (xs, f) {
-    if (xs.filter) return xs.filter(f);
-    var res = [];
-    for (var i = 0; i < xs.length; i++) {
-        if (f(xs[i], i, xs)) res.push(xs[i]);
-    }
-    return res;
-}
-
-// String.prototype.substr - negative index don't work in IE8
-var substr = 'ab'.substr(-1) === 'b'
-    ? function (str, start, len) { return str.substr(start, len) }
-    : function (str, start, len) {
-        if (start < 0) start = str.length + start;
-        return str.substr(start, len);
-    }
-;
-
-}).call(this,require('_process'))
-},{"_process":4}],4:[function(require,module,exports){
-// shim for using process in browser
-
-var process = module.exports = {};
-var queue = [];
-var draining = false;
-var currentQueue;
-var queueIndex = -1;
-
-function cleanUpNextTick() {
-    draining = false;
-    if (currentQueue.length) {
-        queue = currentQueue.concat(queue);
-    } else {
-        queueIndex = -1;
-    }
-    if (queue.length) {
-        drainQueue();
-    }
-}
-
-function drainQueue() {
-    if (draining) {
-        return;
-    }
-    var timeout = setTimeout(cleanUpNextTick);
-    draining = true;
-
-    var len = queue.length;
-    while(len) {
-        currentQueue = queue;
-        queue = [];
-        while (++queueIndex < len) {
-            if (currentQueue) {
-                currentQueue[queueIndex].run();
-            }
-        }
-        queueIndex = -1;
-        len = queue.length;
-    }
-    currentQueue = null;
-    draining = false;
-    clearTimeout(timeout);
-}
-
-process.nextTick = function (fun) {
-    var args = new Array(arguments.length - 1);
-    if (arguments.length > 1) {
-        for (var i = 1; i < arguments.length; i++) {
-            args[i - 1] = arguments[i];
-        }
-    }
-    queue.push(new Item(fun, args));
-    if (queue.length === 1 && !draining) {
-        setTimeout(drainQueue, 0);
-    }
-};
-
-// v8 likes predictible objects
-function Item(fun, array) {
-    this.fun = fun;
-    this.array = array;
-}
-Item.prototype.run = function () {
-    this.fun.apply(null, this.array);
-};
-process.title = 'browser';
-process.browser = true;
-process.env = {};
-process.argv = [];
-process.version = ''; // empty string to avoid regexp issues
-process.versions = {};
-
-function noop() {}
-
-process.on = noop;
-process.addListener = noop;
-process.once = noop;
-process.off = noop;
-process.removeListener = noop;
-process.removeAllListeners = noop;
-process.emit = noop;
-
-process.binding = function (name) {
-    throw new Error('process.binding is not supported');
-};
-
-process.cwd = function () { return '/' };
-process.chdir = function (dir) {
-    throw new Error('process.chdir is not supported');
-};
-process.umask = function() { return 0; };
-
-},{}],5:[function(require,module,exports){
-(function (global){
-/*! https://mths.be/punycode v1.4.0 by @mathias */
-;(function(root) {
-
-	/** Detect free variables */
-	var freeExports = typeof exports == 'object' && exports &&
-		!exports.nodeType && exports;
-	var freeModule = typeof module == 'object' && module &&
-		!module.nodeType && module;
-	var freeGlobal = typeof global == 'object' && global;
-	if (
-		freeGlobal.global === freeGlobal ||
-		freeGlobal.window === freeGlobal ||
-		freeGlobal.self === freeGlobal
-	) {
-		root = freeGlobal;
-	}
-
-	/**
-	 * The `punycode` object.
-	 * @name punycode
-	 * @type Object
-	 */
-	var punycode,
-
-	/** Highest positive signed 32-bit float value */
-	maxInt = 2147483647, // aka. 0x7FFFFFFF or 2^31-1
-
-	/** Bootstring parameters */
-	base = 36,
-	tMin = 1,
-	tMax = 26,
-	skew = 38,
-	damp = 700,
-	initialBias = 72,
-	initialN = 128, // 0x80
-	delimiter = '-', // '\x2D'
-
-	/** Regular expressions */
-	regexPunycode = /^xn--/,
-	regexNonASCII = /[^\x20-\x7E]/, // unprintable ASCII chars + non-ASCII chars
-	regexSeparators = /[\x2E\u3002\uFF0E\uFF61]/g, // RFC 3490 separators
-
-	/** Error messages */
-	errors = {
-		'overflow': 'Overflow: input needs wider integers to process',
-		'not-basic': 'Illegal input >= 0x80 (not a basic code point)',
-		'invalid-input': 'Invalid input'
-	},
-
-	/** Convenience shortcuts */
-	baseMinusTMin = base - tMin,
-	floor = Math.floor,
-	stringFromCharCode = String.fromCharCode,
-
-	/** Temporary variable */
-	key;
-
-	/*--------------------------------------------------------------------------*/
-
-	/**
-	 * A generic error utility function.
-	 * @private
-	 * @param {String} type The error type.
-	 * @returns {Error} Throws a `RangeError` with the applicable error message.
-	 */
-	function error(type) {
-		throw new RangeError(errors[type]);
-	}
-
-	/**
-	 * A generic `Array#map` utility function.
-	 * @private
-	 * @param {Array} array The array to iterate over.
-	 * @param {Function} callback The function that gets called for every array
-	 * item.
-	 * @returns {Array} A new array of values returned by the callback function.
-	 */
-	function map(array, fn) {
-		var length = array.length;
-		var result = [];
-		while (length--) {
-			result[length] = fn(array[length]);
-		}
-		return result;
-	}
-
-	/**
-	 * A simple `Array#map`-like wrapper to work with domain name strings or email
-	 * addresses.
-	 * @private
-	 * @param {String} domain The domain name or email address.
-	 * @param {Function} callback The function that gets called for every
-	 * character.
-	 * @returns {Array} A new string of characters returned by the callback
-	 * function.
-	 */
-	function mapDomain(string, fn) {
-		var parts = string.split('@');
-		var result = '';
-		if (parts.length > 1) {
-			// In email addresses, only the domain name should be punycoded. Leave
-			// the local part (i.e. everything up to `@`) intact.
-			result = parts[0] + '@';
-			string = parts[1];
-		}
-		// Avoid `split(regex)` for IE8 compatibility. See #17.
-		string = string.replace(regexSeparators, '\x2E');
-		var labels = string.split('.');
-		var encoded = map(labels, fn).join('.');
-		return result + encoded;
-	}
-
-	/**
-	 * Creates an array containing the numeric code points of each Unicode
-	 * character in the string. While JavaScript uses UCS-2 internally,
-	 * this function will convert a pair of surrogate halves (each of which
-	 * UCS-2 exposes as separate characters) into a single code point,
-	 * matching UTF-16.
-	 * @see `punycode.ucs2.encode`
-	 * @see <https://mathiasbynens.be/notes/javascript-encoding>
-	 * @memberOf punycode.ucs2
-	 * @name decode
-	 * @param {String} string The Unicode input string (UCS-2).
-	 * @returns {Array} The new array of code points.
-	 */
-	function ucs2decode(string) {
-		var output = [],
-		    counter = 0,
-		    length = string.length,
-		    value,
-		    extra;
-		while (counter < length) {
-			value = string.charCodeAt(counter++);
-			if (value >= 0xD800 && value <= 0xDBFF && counter < length) {
-				// high surrogate, and there is a next character
-				extra = string.charCodeAt(counter++);
-				if ((extra & 0xFC00) == 0xDC00) { // low surrogate
-					output.push(((value & 0x3FF) << 10) + (extra & 0x3FF) + 0x10000);
-				} else {
-					// unmatched surrogate; only append this code unit, in case the next
-					// code unit is the high surrogate of a surrogate pair
-					output.push(value);
-					counter--;
-				}
-			} else {
-				output.push(value);
-			}
-		}
-		return output;
-	}
-
-	/**
-	 * Creates a string based on an array of numeric code points.
-	 * @see `punycode.ucs2.decode`
-	 * @memberOf punycode.ucs2
-	 * @name encode
-	 * @param {Array} codePoints The array of numeric code points.
-	 * @returns {String} The new Unicode string (UCS-2).
-	 */
-	function ucs2encode(array) {
-		return map(array, function(value) {
-			var output = '';
-			if (value > 0xFFFF) {
-				value -= 0x10000;
-				output += stringFromCharCode(value >>> 10 & 0x3FF | 0xD800);
-				value = 0xDC00 | value & 0x3FF;
-			}
-			output += stringFromCharCode(value);
-			return output;
-		}).join('');
-	}
-
-	/**
-	 * Converts a basic code point into a digit/integer.
-	 * @see `digitToBasic()`
-	 * @private
-	 * @param {Number} codePoint The basic numeric code point value.
-	 * @returns {Number} The numeric value of a basic code point (for use in
-	 * representing integers) in the range `0` to `base - 1`, or `base` if
-	 * the code point does not represent a value.
-	 */
-	function basicToDigit(codePoint) {
-		if (codePoint - 48 < 10) {
-			return codePoint - 22;
-		}
-		if (codePoint - 65 < 26) {
-			return codePoint - 65;
-		}
-		if (codePoint - 97 < 26) {
-			return codePoint - 97;
-		}
-		return base;
-	}
-
-	/**
-	 * Converts a digit/integer into a basic code point.
-	 * @see `basicToDigit()`
-	 * @private
-	 * @param {Number} digit The numeric value of a basic code point.
-	 * @returns {Number} The basic code point whose value (when used for
-	 * representing integers) is `digit`, which needs to be in the range
-	 * `0` to `base - 1`. If `flag` is non-zero, the uppercase form is
-	 * used; else, the lowercase form is used. The behavior is undefined
-	 * if `flag` is non-zero and `digit` has no uppercase form.
-	 */
-	function digitToBasic(digit, flag) {
-		//  0..25 map to ASCII a..z or A..Z
-		// 26..35 map to ASCII 0..9
-		return digit + 22 + 75 * (digit < 26) - ((flag != 0) << 5);
-	}
-
-	/**
-	 * Bias adaptation function as per section 3.4 of RFC 3492.
-	 * https://tools.ietf.org/html/rfc3492#section-3.4
-	 * @private
-	 */
-	function adapt(delta, numPoints, firstTime) {
-		var k = 0;
-		delta = firstTime ? floor(delta / damp) : delta >> 1;
-		delta += floor(delta / numPoints);
-		for (/* no initialization */; delta > baseMinusTMin * tMax >> 1; k += base) {
-			delta = floor(delta / baseMinusTMin);
-		}
-		return floor(k + (baseMinusTMin + 1) * delta / (delta + skew));
-	}
-
-	/**
-	 * Converts a Punycode string of ASCII-only symbols to a string of Unicode
-	 * symbols.
-	 * @memberOf punycode
-	 * @param {String} input The Punycode string of ASCII-only symbols.
-	 * @returns {String} The resulting string of Unicode symbols.
-	 */
-	function decode(input) {
-		// Don't use UCS-2
-		var output = [],
-		    inputLength = input.length,
-		    out,
-		    i = 0,
-		    n = initialN,
-		    bias = initialBias,
-		    basic,
-		    j,
-		    index,
-		    oldi,
-		    w,
-		    k,
-		    digit,
-		    t,
-		    /** Cached calculation results */
-		    baseMinusT;
-
-		// Handle the basic code points: let `basic` be the number of input code
-		// points before the last delimiter, or `0` if there is none, then copy
-		// the first basic code points to the output.
-
-		basic = input.lastIndexOf(delimiter);
-		if (basic < 0) {
-			basic = 0;
-		}
-
-		for (j = 0; j < basic; ++j) {
-			// if it's not a basic code point
-			if (input.charCodeAt(j) >= 0x80) {
-				error('not-basic');
-			}
-			output.push(input.charCodeAt(j));
-		}
-
-		// Main decoding loop: start just after the last delimiter if any basic code
-		// points were copied; start at the beginning otherwise.
-
-		for (index = basic > 0 ? basic + 1 : 0; index < inputLength; /* no final expression */) {
-
-			// `index` is the index of the next character to be consumed.
-			// Decode a generalized variable-length integer into `delta`,
-			// which gets added to `i`. The overflow checking is easier
-			// if we increase `i` as we go, then subtract off its starting
-			// value at the end to obtain `delta`.
-			for (oldi = i, w = 1, k = base; /* no condition */; k += base) {
-
-				if (index >= inputLength) {
-					error('invalid-input');
-				}
-
-				digit = basicToDigit(input.charCodeAt(index++));
-
-				if (digit >= base || digit > floor((maxInt - i) / w)) {
-					error('overflow');
-				}
-
-				i += digit * w;
-				t = k <= bias ? tMin : (k >= bias + tMax ? tMax : k - bias);
-
-				if (digit < t) {
-					break;
-				}
-
-				baseMinusT = base - t;
-				if (w > floor(maxInt / baseMinusT)) {
-					error('overflow');
-				}
-
-				w *= baseMinusT;
-
-			}
-
-			out = output.length + 1;
-			bias = adapt(i - oldi, out, oldi == 0);
-
-			// `i` was supposed to wrap around from `out` to `0`,
-			// incrementing `n` each time, so we'll fix that now:
-			if (floor(i / out) > maxInt - n) {
-				error('overflow');
-			}
-
-			n += floor(i / out);
-			i %= out;
-
-			// Insert `n` at position `i` of the output
-			output.splice(i++, 0, n);
-
-		}
-
-		return ucs2encode(output);
-	}
-
-	/**
-	 * Converts a string of Unicode symbols (e.g. a domain name label) to a
-	 * Punycode string of ASCII-only symbols.
-	 * @memberOf punycode
-	 * @param {String} input The string of Unicode symbols.
-	 * @returns {String} The resulting Punycode string of ASCII-only symbols.
-	 */
-	function encode(input) {
-		var n,
-		    delta,
-		    handledCPCount,
-		    basicLength,
-		    bias,
-		    j,
-		    m,
-		    q,
-		    k,
-		    t,
-		    currentValue,
-		    output = [],
-		    /** `inputLength` will hold the number of code points in `input`. */
-		    inputLength,
-		    /** Cached calculation results */
-		    handledCPCountPlusOne,
-		    baseMinusT,
-		    qMinusT;
-
-		// Convert the input in UCS-2 to Unicode
-		input = ucs2decode(input);
-
-		// Cache the length
-		inputLength = input.length;
-
-		// Initialize the state
-		n = initialN;
-		delta = 0;
-		bias = initialBias;
-
-		// Handle the basic code points
-		for (j = 0; j < inputLength; ++j) {
-			currentValue = input[j];
-			if (currentValue < 0x80) {
-				output.push(stringFromCharCode(currentValue));
-			}
-		}
-
-		handledCPCount = basicLength = output.length;
-
-		// `handledCPCount` is the number of code points that have been handled;
-		// `basicLength` is the number of basic code points.
-
-		// Finish the basic string - if it is not empty - with a delimiter
-		if (basicLength) {
-			output.push(delimiter);
-		}
-
-		// Main encoding loop:
-		while (handledCPCount < inputLength) {
-
-			// All non-basic code points < n have been handled already. Find the next
-			// larger one:
-			for (m = maxInt, j = 0; j < inputLength; ++j) {
-				currentValue = input[j];
-				if (currentValue >= n && currentValue < m) {
-					m = currentValue;
-				}
-			}
-
-			// Increase `delta` enough to advance the decoder's <n,i> state to <m,0>,
-			// but guard against overflow
-			handledCPCountPlusOne = handledCPCount + 1;
-			if (m - n > floor((maxInt - delta) / handledCPCountPlusOne)) {
-				error('overflow');
-			}
-
-			delta += (m - n) * handledCPCountPlusOne;
-			n = m;
-
-			for (j = 0; j < inputLength; ++j) {
-				currentValue = input[j];
-
-				if (currentValue < n && ++delta > maxInt) {
-					error('overflow');
-				}
-
-				if (currentValue == n) {
-					// Represent delta as a generalized variable-length integer
-					for (q = delta, k = base; /* no condition */; k += base) {
-						t = k <= bias ? tMin : (k >= bias + tMax ? tMax : k - bias);
-						if (q < t) {
-							break;
-						}
-						qMinusT = q - t;
-						baseMinusT = base - t;
-						output.push(
-							stringFromCharCode(digitToBasic(t + qMinusT % baseMinusT, 0))
-						);
-						q = floor(qMinusT / baseMinusT);
-					}
-
-					output.push(stringFromCharCode(digitToBasic(q, 0)));
-					bias = adapt(delta, handledCPCountPlusOne, handledCPCount == basicLength);
-					delta = 0;
-					++handledCPCount;
-				}
-			}
-
-			++delta;
-			++n;
-
-		}
-		return output.join('');
-	}
-
-	/**
-	 * Converts a Punycode string representing a domain name or an email address
-	 * to Unicode. Only the Punycoded parts of the input will be converted, i.e.
-	 * it doesn't matter if you call it on a string that has already been
-	 * converted to Unicode.
-	 * @memberOf punycode
-	 * @param {String} input The Punycoded domain name or email address to
-	 * convert to Unicode.
-	 * @returns {String} The Unicode representation of the given Punycode
-	 * string.
-	 */
-	function toUnicode(input) {
-		return mapDomain(input, function(string) {
-			return regexPunycode.test(string)
-				? decode(string.slice(4).toLowerCase())
-				: string;
-		});
-	}
-
-	/**
-	 * Converts a Unicode string representing a domain name or an email address to
-	 * Punycode. Only the non-ASCII parts of the domain name will be converted,
-	 * i.e. it doesn't matter if you call it with a domain that's already in
-	 * ASCII.
-	 * @memberOf punycode
-	 * @param {String} input The domain name or email address to convert, as a
-	 * Unicode string.
-	 * @returns {String} The Punycode representation of the given domain name or
-	 * email address.
-	 */
-	function toASCII(input) {
-		return mapDomain(input, function(string) {
-			return regexNonASCII.test(string)
-				? 'xn--' + encode(string)
-				: string;
-		});
-	}
-
-	/*--------------------------------------------------------------------------*/
-
-	/** Define the public API */
-	punycode = {
-		/**
-		 * A string representing the current Punycode.js version number.
-		 * @memberOf punycode
-		 * @type String
-		 */
-		'version': '1.3.2',
-		/**
-		 * An object of methods to convert from JavaScript's internal character
-		 * representation (UCS-2) to Unicode code points, and back.
-		 * @see <https://mathiasbynens.be/notes/javascript-encoding>
-		 * @memberOf punycode
-		 * @type Object
-		 */
-		'ucs2': {
-			'decode': ucs2decode,
-			'encode': ucs2encode
-		},
-		'decode': decode,
-		'encode': encode,
-		'toASCII': toASCII,
-		'toUnicode': toUnicode
-	};
-
-	/** Expose `punycode` */
-	// Some AMD build optimizers, like r.js, check for specific condition patterns
-	// like the following:
-	if (
-		typeof define == 'function' &&
-		typeof define.amd == 'object' &&
-		define.amd
-	) {
-		define('punycode', function() {
-			return punycode;
-		});
-	} else if (freeExports && freeModule) {
-		if (module.exports == freeExports) {
-			// in Node.js, io.js, or RingoJS v0.8.0+
-			freeModule.exports = punycode;
-		} else {
-			// in Narwhal or RingoJS v0.7.0-
-			for (key in punycode) {
-				punycode.hasOwnProperty(key) && (freeExports[key] = punycode[key]);
-			}
-		}
-	} else {
-		// in Rhino or a web browser
-		root.punycode = punycode;
-	}
-
-}(this));
-
-}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],6:[function(require,module,exports){
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-'use strict';
-
-// If obj.hasOwnProperty has been overridden, then calling
-// obj.hasOwnProperty(prop) will break.
-// See: https://github.com/joyent/node/issues/1707
-function hasOwnProperty(obj, prop) {
-  return Object.prototype.hasOwnProperty.call(obj, prop);
-}
-
-module.exports = function(qs, sep, eq, options) {
-  sep = sep || '&';
-  eq = eq || '=';
-  var obj = {};
-
-  if (typeof qs !== 'string' || qs.length === 0) {
-    return obj;
-  }
-
-  var regexp = /\+/g;
-  qs = qs.split(sep);
-
-  var maxKeys = 1000;
-  if (options && typeof options.maxKeys === 'number') {
-    maxKeys = options.maxKeys;
-  }
-
-  var len = qs.length;
-  // maxKeys <= 0 means that we should not limit keys count
-  if (maxKeys > 0 && len > maxKeys) {
-    len = maxKeys;
-  }
-
-  for (var i = 0; i < len; ++i) {
-    var x = qs[i].replace(regexp, '%20'),
-        idx = x.indexOf(eq),
-        kstr, vstr, k, v;
-
-    if (idx >= 0) {
-      kstr = x.substr(0, idx);
-      vstr = x.substr(idx + 1);
-    } else {
-      kstr = x;
-      vstr = '';
-    }
-
-    k = decodeURIComponent(kstr);
-    v = decodeURIComponent(vstr);
-
-    if (!hasOwnProperty(obj, k)) {
-      obj[k] = v;
-    } else if (isArray(obj[k])) {
-      obj[k].push(v);
-    } else {
-      obj[k] = [obj[k], v];
-    }
-  }
-
-  return obj;
-};
-
-var isArray = Array.isArray || function (xs) {
-  return Object.prototype.toString.call(xs) === '[object Array]';
-};
-
-},{}],7:[function(require,module,exports){
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-'use strict';
-
-var stringifyPrimitive = function(v) {
-  switch (typeof v) {
-    case 'string':
-      return v;
-
-    case 'boolean':
-      return v ? 'true' : 'false';
-
-    case 'number':
-      return isFinite(v) ? v : '';
-
-    default:
-      return '';
-  }
-};
-
-module.exports = function(obj, sep, eq, name) {
-  sep = sep || '&';
-  eq = eq || '=';
-  if (obj === null) {
-    obj = undefined;
-  }
-
-  if (typeof obj === 'object') {
-    return map(objectKeys(obj), function(k) {
-      var ks = encodeURIComponent(stringifyPrimitive(k)) + eq;
-      if (isArray(obj[k])) {
-        return map(obj[k], function(v) {
-          return ks + encodeURIComponent(stringifyPrimitive(v));
-        }).join(sep);
-      } else {
-        return ks + encodeURIComponent(stringifyPrimitive(obj[k]));
-      }
-    }).join(sep);
-
-  }
-
-  if (!name) return '';
-  return encodeURIComponent(stringifyPrimitive(name)) + eq +
-         encodeURIComponent(stringifyPrimitive(obj));
-};
-
-var isArray = Array.isArray || function (xs) {
-  return Object.prototype.toString.call(xs) === '[object Array]';
-};
-
-function map (xs, f) {
-  if (xs.map) return xs.map(f);
-  var res = [];
-  for (var i = 0; i < xs.length; i++) {
-    res.push(f(xs[i], i));
-  }
-  return res;
-}
-
-var objectKeys = Object.keys || function (obj) {
-  var res = [];
-  for (var key in obj) {
-    if (Object.prototype.hasOwnProperty.call(obj, key)) res.push(key);
-  }
-  return res;
-};
-
-},{}],8:[function(require,module,exports){
-'use strict';
-
-exports.decode = exports.parse = require('./decode');
-exports.encode = exports.stringify = require('./encode');
-
-},{"./decode":6,"./encode":7}],9:[function(require,module,exports){
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-var punycode = require('punycode');
-
-exports.parse = urlParse;
-exports.resolve = urlResolve;
-exports.resolveObject = urlResolveObject;
-exports.format = urlFormat;
-
-exports.Url = Url;
-
-function Url() {
-  this.protocol = null;
-  this.slashes = null;
-  this.auth = null;
-  this.host = null;
-  this.port = null;
-  this.hostname = null;
-  this.hash = null;
-  this.search = null;
-  this.query = null;
-  this.pathname = null;
-  this.path = null;
-  this.href = null;
-}
-
-// Reference: RFC 3986, RFC 1808, RFC 2396
-
-// define these here so at least they only have to be
-// compiled once on the first module load.
-var protocolPattern = /^([a-z0-9.+-]+:)/i,
-    portPattern = /:[0-9]*$/,
-
-    // RFC 2396: characters reserved for delimiting URLs.
-    // We actually just auto-escape these.
-    delims = ['<', '>', '"', '`', ' ', '\r', '\n', '\t'],
-
-    // RFC 2396: characters not allowed for various reasons.
-    unwise = ['{', '}', '|', '\\', '^', '`'].concat(delims),
-
-    // Allowed by RFCs, but cause of XSS attacks.  Always escape these.
-    autoEscape = ['\''].concat(unwise),
-    // Characters that are never ever allowed in a hostname.
-    // Note that any invalid chars are also handled, but these
-    // are the ones that are *expected* to be seen, so we fast-path
-    // them.
-    nonHostChars = ['%', '/', '?', ';', '#'].concat(autoEscape),
-    hostEndingChars = ['/', '?', '#'],
-    hostnameMaxLen = 255,
-    hostnamePartPattern = /^[a-z0-9A-Z_-]{0,63}$/,
-    hostnamePartStart = /^([a-z0-9A-Z_-]{0,63})(.*)$/,
-    // protocols that can allow "unsafe" and "unwise" chars.
-    unsafeProtocol = {
-      'javascript': true,
-      'javascript:': true
-    },
-    // protocols that never have a hostname.
-    hostlessProtocol = {
-      'javascript': true,
-      'javascript:': true
-    },
-    // protocols that always contain a // bit.
-    slashedProtocol = {
-      'http': true,
-      'https': true,
-      'ftp': true,
-      'gopher': true,
-      'file': true,
-      'http:': true,
-      'https:': true,
-      'ftp:': true,
-      'gopher:': true,
-      'file:': true
-    },
-    querystring = require('querystring');
-
-function urlParse(url, parseQueryString, slashesDenoteHost) {
-  if (url && isObject(url) && url instanceof Url) return url;
-
-  var u = new Url;
-  u.parse(url, parseQueryString, slashesDenoteHost);
-  return u;
-}
-
-Url.prototype.parse = function(url, parseQueryString, slashesDenoteHost) {
-  if (!isString(url)) {
-    throw new TypeError("Parameter 'url' must be a string, not " + typeof url);
-  }
-
-  var rest = url;
-
-  // trim before proceeding.
-  // This is to support parse stuff like "  http://foo.com  \n"
-  rest = rest.trim();
-
-  var proto = protocolPattern.exec(rest);
-  if (proto) {
-    proto = proto[0];
-    var lowerProto = proto.toLowerCase();
-    this.protocol = lowerProto;
-    rest = rest.substr(proto.length);
-  }
-
-  // figure out if it's got a host
-  // user@server is *always* interpreted as a hostname, and url
-  // resolution will treat //foo/bar as host=foo,path=bar because that's
-  // how the browser resolves relative URLs.
-  if (slashesDenoteHost || proto || rest.match(/^\/\/[^@\/]+@[^@\/]+/)) {
-    var slashes = rest.substr(0, 2) === '//';
-    if (slashes && !(proto && hostlessProtocol[proto])) {
-      rest = rest.substr(2);
-      this.slashes = true;
-    }
-  }
-
-  if (!hostlessProtocol[proto] &&
-      (slashes || (proto && !slashedProtocol[proto]))) {
-
-    // there's a hostname.
-    // the first instance of /, ?, ;, or # ends the host.
-    //
-    // If there is an @ in the hostname, then non-host chars *are* allowed
-    // to the left of the last @ sign, unless some host-ending character
-    // comes *before* the @-sign.
-    // URLs are obnoxious.
-    //
-    // ex:
-    // http://a@b@c/ => user:a@b host:c
-    // http://a@b?@c => user:a host:c path:/?@c
-
-    // v0.12 TODO(isaacs): This is not quite how Chrome does things.
-    // Review our test case against browsers more comprehensively.
-
-    // find the first instance of any hostEndingChars
-    var hostEnd = -1;
-    for (var i = 0; i < hostEndingChars.length; i++) {
-      var hec = rest.indexOf(hostEndingChars[i]);
-      if (hec !== -1 && (hostEnd === -1 || hec < hostEnd))
-        hostEnd = hec;
-    }
-
-    // at this point, either we have an explicit point where the
-    // auth portion cannot go past, or the last @ char is the decider.
-    var auth, atSign;
-    if (hostEnd === -1) {
-      // atSign can be anywhere.
-      atSign = rest.lastIndexOf('@');
-    } else {
-      // atSign must be in auth portion.
-      // http://a@b/c@d => host:b auth:a path:/c@d
-      atSign = rest.lastIndexOf('@', hostEnd);
-    }
-
-    // Now we have a portion which is definitely the auth.
-    // Pull that off.
-    if (atSign !== -1) {
-      auth = rest.slice(0, atSign);
-      rest = rest.slice(atSign + 1);
-      this.auth = decodeURIComponent(auth);
-    }
-
-    // the host is the remaining to the left of the first non-host char
-    hostEnd = -1;
-    for (var i = 0; i < nonHostChars.length; i++) {
-      var hec = rest.indexOf(nonHostChars[i]);
-      if (hec !== -1 && (hostEnd === -1 || hec < hostEnd))
-        hostEnd = hec;
-    }
-    // if we still have not hit it, then the entire thing is a host.
-    if (hostEnd === -1)
-      hostEnd = rest.length;
-
-    this.host = rest.slice(0, hostEnd);
-    rest = rest.slice(hostEnd);
-
-    // pull out port.
-    this.parseHost();
-
-    // we've indicated that there is a hostname,
-    // so even if it's empty, it has to be present.
-    this.hostname = this.hostname || '';
-
-    // if hostname begins with [ and ends with ]
-    // assume that it's an IPv6 address.
-    var ipv6Hostname = this.hostname[0] === '[' &&
-        this.hostname[this.hostname.length - 1] === ']';
-
-    // validate a little.
-    if (!ipv6Hostname) {
-      var hostparts = this.hostname.split(/\./);
-      for (var i = 0, l = hostparts.length; i < l; i++) {
-        var part = hostparts[i];
-        if (!part) continue;
-        if (!part.match(hostnamePartPattern)) {
-          var newpart = '';
-          for (var j = 0, k = part.length; j < k; j++) {
-            if (part.charCodeAt(j) > 127) {
-              // we replace non-ASCII char with a temporary placeholder
-              // we need this to make sure size of hostname is not
-              // broken by replacing non-ASCII by nothing
-              newpart += 'x';
-            } else {
-              newpart += part[j];
-            }
-          }
-          // we test again with ASCII char only
-          if (!newpart.match(hostnamePartPattern)) {
-            var validParts = hostparts.slice(0, i);
-            var notHost = hostparts.slice(i + 1);
-            var bit = part.match(hostnamePartStart);
-            if (bit) {
-              validParts.push(bit[1]);
-              notHost.unshift(bit[2]);
-            }
-            if (notHost.length) {
-              rest = '/' + notHost.join('.') + rest;
-            }
-            this.hostname = validParts.join('.');
-            break;
-          }
-        }
-      }
-    }
-
-    if (this.hostname.length > hostnameMaxLen) {
-      this.hostname = '';
-    } else {
-      // hostnames are always lower case.
-      this.hostname = this.hostname.toLowerCase();
-    }
-
-    if (!ipv6Hostname) {
-      // IDNA Support: Returns a puny coded representation of "domain".
-      // It only converts the part of the domain name that
-      // has non ASCII characters. I.e. it dosent matter if
-      // you call it with a domain that already is in ASCII.
-      var domainArray = this.hostname.split('.');
-      var newOut = [];
-      for (var i = 0; i < domainArray.length; ++i) {
-        var s = domainArray[i];
-        newOut.push(s.match(/[^A-Za-z0-9_-]/) ?
-            'xn--' + punycode.encode(s) : s);
-      }
-      this.hostname = newOut.join('.');
-    }
-
-    var p = this.port ? ':' + this.port : '';
-    var h = this.hostname || '';
-    this.host = h + p;
-    this.href += this.host;
-
-    // strip [ and ] from the hostname
-    // the host field still retains them, though
-    if (ipv6Hostname) {
-      this.hostname = this.hostname.substr(1, this.hostname.length - 2);
-      if (rest[0] !== '/') {
-        rest = '/' + rest;
-      }
-    }
-  }
-
-  // now rest is set to the post-host stuff.
-  // chop off any delim chars.
-  if (!unsafeProtocol[lowerProto]) {
-
-    // First, make 100% sure that any "autoEscape" chars get
-    // escaped, even if encodeURIComponent doesn't think they
-    // need to be.
-    for (var i = 0, l = autoEscape.length; i < l; i++) {
-      var ae = autoEscape[i];
-      var esc = encodeURIComponent(ae);
-      if (esc === ae) {
-        esc = escape(ae);
-      }
-      rest = rest.split(ae).join(esc);
-    }
-  }
-
-
-  // chop off from the tail first.
-  var hash = rest.indexOf('#');
-  if (hash !== -1) {
-    // got a fragment string.
-    this.hash = rest.substr(hash);
-    rest = rest.slice(0, hash);
-  }
-  var qm = rest.indexOf('?');
-  if (qm !== -1) {
-    this.search = rest.substr(qm);
-    this.query = rest.substr(qm + 1);
-    if (parseQueryString) {
-      this.query = querystring.parse(this.query);
-    }
-    rest = rest.slice(0, qm);
-  } else if (parseQueryString) {
-    // no query string, but parseQueryString still requested
-    this.search = '';
-    this.query = {};
-  }
-  if (rest) this.pathname = rest;
-  if (slashedProtocol[lowerProto] &&
-      this.hostname && !this.pathname) {
-    this.pathname = '/';
-  }
-
-  //to support http.request
-  if (this.pathname || this.search) {
-    var p = this.pathname || '';
-    var s = this.search || '';
-    this.path = p + s;
-  }
-
-  // finally, reconstruct the href based on what has been validated.
-  this.href = this.format();
-  return this;
-};
-
-// format a parsed object into a url string
-function urlFormat(obj) {
-  // ensure it's an object, and not a string url.
-  // If it's an obj, this is a no-op.
-  // this way, you can call url_format() on strings
-  // to clean up potentially wonky urls.
-  if (isString(obj)) obj = urlParse(obj);
-  if (!(obj instanceof Url)) return Url.prototype.format.call(obj);
-  return obj.format();
-}
-
-Url.prototype.format = function() {
-  var auth = this.auth || '';
-  if (auth) {
-    auth = encodeURIComponent(auth);
-    auth = auth.replace(/%3A/i, ':');
-    auth += '@';
-  }
-
-  var protocol = this.protocol || '',
-      pathname = this.pathname || '',
-      hash = this.hash || '',
-      host = false,
-      query = '';
-
-  if (this.host) {
-    host = auth + this.host;
-  } else if (this.hostname) {
-    host = auth + (this.hostname.indexOf(':') === -1 ?
-        this.hostname :
-        '[' + this.hostname + ']');
-    if (this.port) {
-      host += ':' + this.port;
-    }
-  }
-
-  if (this.query &&
-      isObject(this.query) &&
-      Object.keys(this.query).length) {
-    query = querystring.stringify(this.query);
-  }
-
-  var search = this.search || (query && ('?' + query)) || '';
-
-  if (protocol && protocol.substr(-1) !== ':') protocol += ':';
-
-  // only the slashedProtocols get the //.  Not mailto:, xmpp:, etc.
-  // unless they had them to begin with.
-  if (this.slashes ||
-      (!protocol || slashedProtocol[protocol]) && host !== false) {
-    host = '//' + (host || '');
-    if (pathname && pathname.charAt(0) !== '/') pathname = '/' + pathname;
-  } else if (!host) {
-    host = '';
-  }
-
-  if (hash && hash.charAt(0) !== '#') hash = '#' + hash;
-  if (search && search.charAt(0) !== '?') search = '?' + search;
-
-  pathname = pathname.replace(/[?#]/g, function(match) {
-    return encodeURIComponent(match);
-  });
-  search = search.replace('#', '%23');
-
-  return protocol + host + pathname + search + hash;
-};
-
-function urlResolve(source, relative) {
-  return urlParse(source, false, true).resolve(relative);
-}
-
-Url.prototype.resolve = function(relative) {
-  return this.resolveObject(urlParse(relative, false, true)).format();
-};
-
-function urlResolveObject(source, relative) {
-  if (!source) return relative;
-  return urlParse(source, false, true).resolveObject(relative);
-}
-
-Url.prototype.resolveObject = function(relative) {
-  if (isString(relative)) {
-    var rel = new Url();
-    rel.parse(relative, false, true);
-    relative = rel;
-  }
-
-  var result = new Url();
-  Object.keys(this).forEach(function(k) {
-    result[k] = this[k];
-  }, this);
-
-  // hash is always overridden, no matter what.
-  // even href="" will remove it.
-  result.hash = relative.hash;
-
-  // if the relative url is empty, then there's nothing left to do here.
-  if (relative.href === '') {
-    result.href = result.format();
-    return result;
-  }
-
-  // hrefs like //foo/bar always cut to the protocol.
-  if (relative.slashes && !relative.protocol) {
-    // take everything except the protocol from relative
-    Object.keys(relative).forEach(function(k) {
-      if (k !== 'protocol')
-        result[k] = relative[k];
-    });
-
-    //urlParse appends trailing / to urls like http://www.example.com
-    if (slashedProtocol[result.protocol] &&
-        result.hostname && !result.pathname) {
-      result.path = result.pathname = '/';
-    }
-
-    result.href = result.format();
-    return result;
-  }
-
-  if (relative.protocol && relative.protocol !== result.protocol) {
-    // if it's a known url protocol, then changing
-    // the protocol does weird things
-    // first, if it's not file:, then we MUST have a host,
-    // and if there was a path
-    // to begin with, then we MUST have a path.
-    // if it is file:, then the host is dropped,
-    // because that's known to be hostless.
-    // anything else is assumed to be absolute.
-    if (!slashedProtocol[relative.protocol]) {
-      Object.keys(relative).forEach(function(k) {
-        result[k] = relative[k];
-      });
-      result.href = result.format();
-      return result;
-    }
-
-    result.protocol = relative.protocol;
-    if (!relative.host && !hostlessProtocol[relative.protocol]) {
-      var relPath = (relative.pathname || '').split('/');
-      while (relPath.length && !(relative.host = relPath.shift()));
-      if (!relative.host) relative.host = '';
-      if (!relative.hostname) relative.hostname = '';
-      if (relPath[0] !== '') relPath.unshift('');
-      if (relPath.length < 2) relPath.unshift('');
-      result.pathname = relPath.join('/');
-    } else {
-      result.pathname = relative.pathname;
-    }
-    result.search = relative.search;
-    result.query = relative.query;
-    result.host = relative.host || '';
-    result.auth = relative.auth;
-    result.hostname = relative.hostname || relative.host;
-    result.port = relative.port;
-    // to support http.request
-    if (result.pathname || result.search) {
-      var p = result.pathname || '';
-      var s = result.search || '';
-      result.path = p + s;
-    }
-    result.slashes = result.slashes || relative.slashes;
-    result.href = result.format();
-    return result;
-  }
-
-  var isSourceAbs = (result.pathname && result.pathname.charAt(0) === '/'),
-      isRelAbs = (
-          relative.host ||
-          relative.pathname && relative.pathname.charAt(0) === '/'
-      ),
-      mustEndAbs = (isRelAbs || isSourceAbs ||
-                    (result.host && relative.pathname)),
-      removeAllDots = mustEndAbs,
-      srcPath = result.pathname && result.pathname.split('/') || [],
-      relPath = relative.pathname && relative.pathname.split('/') || [],
-      psychotic = result.protocol && !slashedProtocol[result.protocol];
-
-  // if the url is a non-slashed url, then relative
-  // links like ../.. should be able
-  // to crawl up to the hostname, as well.  This is strange.
-  // result.protocol has already been set by now.
-  // Later on, put the first path part into the host field.
-  if (psychotic) {
-    result.hostname = '';
-    result.port = null;
-    if (result.host) {
-      if (srcPath[0] === '') srcPath[0] = result.host;
-      else srcPath.unshift(result.host);
-    }
-    result.host = '';
-    if (relative.protocol) {
-      relative.hostname = null;
-      relative.port = null;
-      if (relative.host) {
-        if (relPath[0] === '') relPath[0] = relative.host;
-        else relPath.unshift(relative.host);
-      }
-      relative.host = null;
-    }
-    mustEndAbs = mustEndAbs && (relPath[0] === '' || srcPath[0] === '');
-  }
-
-  if (isRelAbs) {
-    // it's absolute.
-    result.host = (relative.host || relative.host === '') ?
-                  relative.host : result.host;
-    result.hostname = (relative.hostname || relative.hostname === '') ?
-                      relative.hostname : result.hostname;
-    result.search = relative.search;
-    result.query = relative.query;
-    srcPath = relPath;
-    // fall through to the dot-handling below.
-  } else if (relPath.length) {
-    // it's relative
-    // throw away the existing file, and take the new path instead.
-    if (!srcPath) srcPath = [];
-    srcPath.pop();
-    srcPath = srcPath.concat(relPath);
-    result.search = relative.search;
-    result.query = relative.query;
-  } else if (!isNullOrUndefined(relative.search)) {
-    // just pull out the search.
-    // like href='?foo'.
-    // Put this after the other two cases because it simplifies the booleans
-    if (psychotic) {
-      result.hostname = result.host = srcPath.shift();
-      //occationaly the auth can get stuck only in host
-      //this especialy happens in cases like
-      //url.resolveObject('mailto:local1@domain1', 'local2@domain2')
-      var authInHost = result.host && result.host.indexOf('@') > 0 ?
-                       result.host.split('@') : false;
-      if (authInHost) {
-        result.auth = authInHost.shift();
-        result.host = result.hostname = authInHost.shift();
-      }
-    }
-    result.search = relative.search;
-    result.query = relative.query;
-    //to support http.request
-    if (!isNull(result.pathname) || !isNull(result.search)) {
-      result.path = (result.pathname ? result.pathname : '') +
-                    (result.search ? result.search : '');
-    }
-    result.href = result.format();
-    return result;
-  }
-
-  if (!srcPath.length) {
-    // no path at all.  easy.
-    // we've already handled the other stuff above.
-    result.pathname = null;
-    //to support http.request
-    if (result.search) {
-      result.path = '/' + result.search;
-    } else {
-      result.path = null;
-    }
-    result.href = result.format();
-    return result;
-  }
-
-  // if a url ENDs in . or .., then it must get a trailing slash.
-  // however, if it ends in anything else non-slashy,
-  // then it must NOT get a trailing slash.
-  var last = srcPath.slice(-1)[0];
-  var hasTrailingSlash = (
-      (result.host || relative.host) && (last === '.' || last === '..') ||
-      last === '');
-
-  // strip single dots, resolve double dots to parent dir
-  // if the path tries to go above the root, `up` ends up > 0
-  var up = 0;
-  for (var i = srcPath.length; i >= 0; i--) {
-    last = srcPath[i];
-    if (last == '.') {
-      srcPath.splice(i, 1);
-    } else if (last === '..') {
-      srcPath.splice(i, 1);
-      up++;
-    } else if (up) {
-      srcPath.splice(i, 1);
-      up--;
-    }
-  }
-
-  // if the path is allowed to go above the root, restore leading ..s
-  if (!mustEndAbs && !removeAllDots) {
-    for (; up--; up) {
-      srcPath.unshift('..');
-    }
-  }
-
-  if (mustEndAbs && srcPath[0] !== '' &&
-      (!srcPath[0] || srcPath[0].charAt(0) !== '/')) {
-    srcPath.unshift('');
-  }
-
-  if (hasTrailingSlash && (srcPath.join('/').substr(-1) !== '/')) {
-    srcPath.push('');
-  }
-
-  var isAbsolute = srcPath[0] === '' ||
-      (srcPath[0] && srcPath[0].charAt(0) === '/');
-
-  // put the host back
-  if (psychotic) {
-    result.hostname = result.host = isAbsolute ? '' :
-                                    srcPath.length ? srcPath.shift() : '';
-    //occationaly the auth can get stuck only in host
-    //this especialy happens in cases like
-    //url.resolveObject('mailto:local1@domain1', 'local2@domain2')
-    var authInHost = result.host && result.host.indexOf('@') > 0 ?
-                     result.host.split('@') : false;
-    if (authInHost) {
-      result.auth = authInHost.shift();
-      result.host = result.hostname = authInHost.shift();
-    }
-  }
-
-  mustEndAbs = mustEndAbs || (result.host && srcPath.length);
-
-  if (mustEndAbs && !isAbsolute) {
-    srcPath.unshift('');
-  }
-
-  if (!srcPath.length) {
-    result.pathname = null;
-    result.path = null;
-  } else {
-    result.pathname = srcPath.join('/');
-  }
-
-  //to support request.http
-  if (!isNull(result.pathname) || !isNull(result.search)) {
-    result.path = (result.pathname ? result.pathname : '') +
-                  (result.search ? result.search : '');
-  }
-  result.auth = relative.auth || result.auth;
-  result.slashes = result.slashes || relative.slashes;
-  result.href = result.format();
-  return result;
-};
-
-Url.prototype.parseHost = function() {
-  var host = this.host;
-  var port = portPattern.exec(host);
-  if (port) {
-    port = port[0];
-    if (port !== ':') {
-      this.port = port.substr(1);
-    }
-    host = host.substr(0, host.length - port.length);
-  }
-  if (host) this.hostname = host;
-};
-
-function isString(arg) {
-  return typeof arg === "string";
-}
-
-function isObject(arg) {
-  return typeof arg === 'object' && arg !== null;
-}
-
-function isNull(arg) {
-  return arg === null;
-}
-function isNullOrUndefined(arg) {
-  return  arg == null;
-}
-
-},{"punycode":5,"querystring":8}],10:[function(require,module,exports){
 'use strict';
 
 module.exports = earcut;
@@ -3865,7 +2119,7 @@ earcut.flatten = function (data) {
     return result;
 };
 
-},{}],11:[function(require,module,exports){
+},{}],4:[function(require,module,exports){
 'use strict';
 
 var has = Object.prototype.hasOwnProperty;
@@ -4156,7 +2410,7 @@ if ('undefined' !== typeof module) {
   module.exports = EventEmitter;
 }
 
-},{}],12:[function(require,module,exports){
+},{}],5:[function(require,module,exports){
 /**
  * isMobile.js v0.4.0
  *
@@ -4295,7 +2549,7 @@ if ('undefined' !== typeof module) {
 
 })(this);
 
-},{}],13:[function(require,module,exports){
+},{}],6:[function(require,module,exports){
 'use strict';
 /* eslint-disable no-unused-vars */
 var hasOwnProperty = Object.prototype.hasOwnProperty;
@@ -4380,7 +2634,235 @@ module.exports = shouldUseNative() ? Object.assign : function (target, source) {
 	return to;
 };
 
-},{}],14:[function(require,module,exports){
+},{}],7:[function(require,module,exports){
+(function (process){
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+// resolves . and .. elements in a path array with directory names there
+// must be no slashes, empty elements, or device names (c:\) in the array
+// (so also no leading and trailing slashes - it does not distinguish
+// relative and absolute paths)
+function normalizeArray(parts, allowAboveRoot) {
+  // if the path tries to go above the root, `up` ends up > 0
+  var up = 0;
+  for (var i = parts.length - 1; i >= 0; i--) {
+    var last = parts[i];
+    if (last === '.') {
+      parts.splice(i, 1);
+    } else if (last === '..') {
+      parts.splice(i, 1);
+      up++;
+    } else if (up) {
+      parts.splice(i, 1);
+      up--;
+    }
+  }
+
+  // if the path is allowed to go above the root, restore leading ..s
+  if (allowAboveRoot) {
+    for (; up--; up) {
+      parts.unshift('..');
+    }
+  }
+
+  return parts;
+}
+
+// Split a filename into [root, dir, basename, ext], unix version
+// 'root' is just a slash, or nothing.
+var splitPathRe =
+    /^(\/?|)([\s\S]*?)((?:\.{1,2}|[^\/]+?|)(\.[^.\/]*|))(?:[\/]*)$/;
+var splitPath = function(filename) {
+  return splitPathRe.exec(filename).slice(1);
+};
+
+// path.resolve([from ...], to)
+// posix version
+exports.resolve = function() {
+  var resolvedPath = '',
+      resolvedAbsolute = false;
+
+  for (var i = arguments.length - 1; i >= -1 && !resolvedAbsolute; i--) {
+    var path = (i >= 0) ? arguments[i] : process.cwd();
+
+    // Skip empty and invalid entries
+    if (typeof path !== 'string') {
+      throw new TypeError('Arguments to path.resolve must be strings');
+    } else if (!path) {
+      continue;
+    }
+
+    resolvedPath = path + '/' + resolvedPath;
+    resolvedAbsolute = path.charAt(0) === '/';
+  }
+
+  // At this point the path should be resolved to a full absolute path, but
+  // handle relative paths to be safe (might happen when process.cwd() fails)
+
+  // Normalize the path
+  resolvedPath = normalizeArray(filter(resolvedPath.split('/'), function(p) {
+    return !!p;
+  }), !resolvedAbsolute).join('/');
+
+  return ((resolvedAbsolute ? '/' : '') + resolvedPath) || '.';
+};
+
+// path.normalize(path)
+// posix version
+exports.normalize = function(path) {
+  var isAbsolute = exports.isAbsolute(path),
+      trailingSlash = substr(path, -1) === '/';
+
+  // Normalize the path
+  path = normalizeArray(filter(path.split('/'), function(p) {
+    return !!p;
+  }), !isAbsolute).join('/');
+
+  if (!path && !isAbsolute) {
+    path = '.';
+  }
+  if (path && trailingSlash) {
+    path += '/';
+  }
+
+  return (isAbsolute ? '/' : '') + path;
+};
+
+// posix version
+exports.isAbsolute = function(path) {
+  return path.charAt(0) === '/';
+};
+
+// posix version
+exports.join = function() {
+  var paths = Array.prototype.slice.call(arguments, 0);
+  return exports.normalize(filter(paths, function(p, index) {
+    if (typeof p !== 'string') {
+      throw new TypeError('Arguments to path.join must be strings');
+    }
+    return p;
+  }).join('/'));
+};
+
+
+// path.relative(from, to)
+// posix version
+exports.relative = function(from, to) {
+  from = exports.resolve(from).substr(1);
+  to = exports.resolve(to).substr(1);
+
+  function trim(arr) {
+    var start = 0;
+    for (; start < arr.length; start++) {
+      if (arr[start] !== '') break;
+    }
+
+    var end = arr.length - 1;
+    for (; end >= 0; end--) {
+      if (arr[end] !== '') break;
+    }
+
+    if (start > end) return [];
+    return arr.slice(start, end - start + 1);
+  }
+
+  var fromParts = trim(from.split('/'));
+  var toParts = trim(to.split('/'));
+
+  var length = Math.min(fromParts.length, toParts.length);
+  var samePartsLength = length;
+  for (var i = 0; i < length; i++) {
+    if (fromParts[i] !== toParts[i]) {
+      samePartsLength = i;
+      break;
+    }
+  }
+
+  var outputParts = [];
+  for (var i = samePartsLength; i < fromParts.length; i++) {
+    outputParts.push('..');
+  }
+
+  outputParts = outputParts.concat(toParts.slice(samePartsLength));
+
+  return outputParts.join('/');
+};
+
+exports.sep = '/';
+exports.delimiter = ':';
+
+exports.dirname = function(path) {
+  var result = splitPath(path),
+      root = result[0],
+      dir = result[1];
+
+  if (!root && !dir) {
+    // No dirname whatsoever
+    return '.';
+  }
+
+  if (dir) {
+    // It has a dirname, strip trailing slash
+    dir = dir.substr(0, dir.length - 1);
+  }
+
+  return root + dir;
+};
+
+
+exports.basename = function(path, ext) {
+  var f = splitPath(path)[2];
+  // TODO: make this comparison case-insensitive on windows?
+  if (ext && f.substr(-1 * ext.length) === ext) {
+    f = f.substr(0, f.length - ext.length);
+  }
+  return f;
+};
+
+
+exports.extname = function(path) {
+  return splitPath(path)[3];
+};
+
+function filter (xs, f) {
+    if (xs.filter) return xs.filter(f);
+    var res = [];
+    for (var i = 0; i < xs.length; i++) {
+        if (f(xs[i], i, xs)) res.push(xs[i]);
+    }
+    return res;
+}
+
+// String.prototype.substr - negative index don't work in IE8
+var substr = 'ab'.substr(-1) === 'b'
+    ? function (str, start, len) { return str.substr(start, len) }
+    : function (str, start, len) {
+        if (start < 0) start = str.length + start;
+        return str.substr(start, len);
+    }
+;
+
+}).call(this,require('_process'))
+},{"_process":24}],8:[function(require,module,exports){
 var EMPTY_ARRAY_BUFFER = new ArrayBuffer(0);
 
 /**
@@ -4499,7 +2981,7 @@ Buffer.prototype.destroy = function(){
 
 module.exports = Buffer;
 
-},{}],15:[function(require,module,exports){
+},{}],9:[function(require,module,exports){
 
 var Texture = require('./GLTexture');
 
@@ -4728,7 +3210,7 @@ Framebuffer.createFloat32 = function(gl, width, height, data)
 
 module.exports = Framebuffer;
 
-},{"./GLTexture":17}],16:[function(require,module,exports){
+},{"./GLTexture":11}],10:[function(require,module,exports){
 
 var compileProgram = require('./shader/compileProgram'),
 	extractAttributes = require('./shader/extractAttributes'),
@@ -4806,7 +3288,7 @@ Shader.prototype.destroy = function()
 
 module.exports = Shader;
 
-},{"./shader/compileProgram":22,"./shader/extractAttributes":24,"./shader/extractUniforms":25,"./shader/generateUniformAccessObject":26}],17:[function(require,module,exports){
+},{"./shader/compileProgram":16,"./shader/extractAttributes":18,"./shader/extractUniforms":19,"./shader/generateUniformAccessObject":20}],11:[function(require,module,exports){
 
 /**
  * Helper class to create a WebGL Texture
@@ -5118,7 +3600,7 @@ Texture.fromData = function(gl, data, width, height)
 
 module.exports = Texture;
 
-},{}],18:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 
 // state object//
 var setVertexAttribArrays = require( './setVertexAttribArrays' );
@@ -5367,7 +3849,7 @@ VertexArrayObject.prototype.destroy = function()
     this.nativeVao = null;
 };
 
-},{"./setVertexAttribArrays":21}],19:[function(require,module,exports){
+},{"./setVertexAttribArrays":15}],13:[function(require,module,exports){
 
 /**
  * Helper class to create a webGL Context
@@ -5395,7 +3877,7 @@ var createContext = function(canvas, options)
 
 module.exports = createContext;
 
-},{}],20:[function(require,module,exports){
+},{}],14:[function(require,module,exports){
 var gl = {
     createContext:          require('./createContext'),
     setVertexAttribArrays:  require('./setVertexAttribArrays'),
@@ -5420,7 +3902,7 @@ if (typeof window !== 'undefined')
     // add the window object
     window.pixi = { gl: gl };
 }
-},{"./GLBuffer":14,"./GLFramebuffer":15,"./GLShader":16,"./GLTexture":17,"./VertexArrayObject":18,"./createContext":19,"./setVertexAttribArrays":21,"./shader":27}],21:[function(require,module,exports){
+},{"./GLBuffer":8,"./GLFramebuffer":9,"./GLShader":10,"./GLTexture":11,"./VertexArrayObject":12,"./createContext":13,"./setVertexAttribArrays":15,"./shader":21}],15:[function(require,module,exports){
 // var GL_MAP = {};
 
 /**
@@ -5477,7 +3959,7 @@ var setVertexAttribArrays = function (gl, attribs, state)
 
 module.exports = setVertexAttribArrays;
 
-},{}],22:[function(require,module,exports){
+},{}],16:[function(require,module,exports){
 
 /**
  * @class
@@ -5547,7 +4029,7 @@ var compileShader = function (gl, type, src)
 
 module.exports = compileProgram;
 
-},{}],23:[function(require,module,exports){
+},{}],17:[function(require,module,exports){
 /**
  * @class
  * @memberof pixi.gl.shader
@@ -5627,7 +4109,7 @@ var booleanArray = function(size)
 
 module.exports = defaultValue;
 
-},{}],24:[function(require,module,exports){
+},{}],18:[function(require,module,exports){
 
 var mapType = require('./mapType');
 var mapSize = require('./mapSize');
@@ -5670,7 +4152,7 @@ var pointer = function(type, normalized, stride, start){
 
 module.exports = extractAttributes;
 
-},{"./mapSize":28,"./mapType":29}],25:[function(require,module,exports){
+},{"./mapSize":22,"./mapType":23}],19:[function(require,module,exports){
 var mapType = require('./mapType');
 var defaultValue = require('./defaultValue');
 
@@ -5707,7 +4189,7 @@ var extractUniforms = function(gl, program)
 
 module.exports = extractUniforms;
 
-},{"./defaultValue":23,"./mapType":29}],26:[function(require,module,exports){
+},{"./defaultValue":17,"./mapType":23}],20:[function(require,module,exports){
 /**
  * Extracts the attributes
  * @class
@@ -5849,7 +4331,7 @@ var GLSL_TO_ARRAY_SETTERS = {
 
 module.exports = generateUniformAccessObject;
 
-},{}],27:[function(require,module,exports){
+},{}],21:[function(require,module,exports){
 module.exports = {
     compileProgram: require('./compileProgram'),
     defaultValue: require('./defaultValue'),
@@ -5859,7 +4341,7 @@ module.exports = {
     mapSize: require('./mapSize'),
     mapType: require('./mapType')  
 };
-},{"./compileProgram":22,"./defaultValue":23,"./extractAttributes":24,"./extractUniforms":25,"./generateUniformAccessObject":26,"./mapSize":28,"./mapType":29}],28:[function(require,module,exports){
+},{"./compileProgram":16,"./defaultValue":17,"./extractAttributes":18,"./extractUniforms":19,"./generateUniformAccessObject":20,"./mapSize":22,"./mapType":23}],22:[function(require,module,exports){
 /**
  * @class
  * @memberof pixi.gl.shader
@@ -5897,7 +4379,7 @@ var GLSL_TO_SIZE = {
 
 module.exports = mapSize;
 
-},{}],29:[function(require,module,exports){
+},{}],23:[function(require,module,exports){
 
 
 var mapSize = function(gl, type) 
@@ -5945,7 +4427,844 @@ var GL_TO_GLSL_TYPES = {
 
 module.exports = mapSize;
 
-},{}],30:[function(require,module,exports){
+},{}],24:[function(require,module,exports){
+// shim for using process in browser
+
+var process = module.exports = {};
+
+// cached from whatever global is present so that test runners that stub it
+// don't break things.  But we need to wrap it in a try catch in case it is
+// wrapped in strict mode code which doesn't define any globals.  It's inside a
+// function because try/catches deoptimize in certain engines.
+
+var cachedSetTimeout;
+var cachedClearTimeout;
+
+(function () {
+  try {
+    cachedSetTimeout = setTimeout;
+  } catch (e) {
+    cachedSetTimeout = function () {
+      throw new Error('setTimeout is not defined');
+    }
+  }
+  try {
+    cachedClearTimeout = clearTimeout;
+  } catch (e) {
+    cachedClearTimeout = function () {
+      throw new Error('clearTimeout is not defined');
+    }
+  }
+} ())
+var queue = [];
+var draining = false;
+var currentQueue;
+var queueIndex = -1;
+
+function cleanUpNextTick() {
+    if (!draining || !currentQueue) {
+        return;
+    }
+    draining = false;
+    if (currentQueue.length) {
+        queue = currentQueue.concat(queue);
+    } else {
+        queueIndex = -1;
+    }
+    if (queue.length) {
+        drainQueue();
+    }
+}
+
+function drainQueue() {
+    if (draining) {
+        return;
+    }
+    var timeout = cachedSetTimeout(cleanUpNextTick);
+    draining = true;
+
+    var len = queue.length;
+    while(len) {
+        currentQueue = queue;
+        queue = [];
+        while (++queueIndex < len) {
+            if (currentQueue) {
+                currentQueue[queueIndex].run();
+            }
+        }
+        queueIndex = -1;
+        len = queue.length;
+    }
+    currentQueue = null;
+    draining = false;
+    cachedClearTimeout(timeout);
+}
+
+process.nextTick = function (fun) {
+    var args = new Array(arguments.length - 1);
+    if (arguments.length > 1) {
+        for (var i = 1; i < arguments.length; i++) {
+            args[i - 1] = arguments[i];
+        }
+    }
+    queue.push(new Item(fun, args));
+    if (queue.length === 1 && !draining) {
+        cachedSetTimeout(drainQueue, 0);
+    }
+};
+
+// v8 likes predictible objects
+function Item(fun, array) {
+    this.fun = fun;
+    this.array = array;
+}
+Item.prototype.run = function () {
+    this.fun.apply(null, this.array);
+};
+process.title = 'browser';
+process.browser = true;
+process.env = {};
+process.argv = [];
+process.version = ''; // empty string to avoid regexp issues
+process.versions = {};
+
+function noop() {}
+
+process.on = noop;
+process.addListener = noop;
+process.once = noop;
+process.off = noop;
+process.removeListener = noop;
+process.removeAllListeners = noop;
+process.emit = noop;
+
+process.binding = function (name) {
+    throw new Error('process.binding is not supported');
+};
+
+process.cwd = function () { return '/' };
+process.chdir = function (dir) {
+    throw new Error('process.chdir is not supported');
+};
+process.umask = function() { return 0; };
+
+},{}],25:[function(require,module,exports){
+(function (global){
+/*! https://mths.be/punycode v1.4.1 by @mathias */
+;(function(root) {
+
+	/** Detect free variables */
+	var freeExports = typeof exports == 'object' && exports &&
+		!exports.nodeType && exports;
+	var freeModule = typeof module == 'object' && module &&
+		!module.nodeType && module;
+	var freeGlobal = typeof global == 'object' && global;
+	if (
+		freeGlobal.global === freeGlobal ||
+		freeGlobal.window === freeGlobal ||
+		freeGlobal.self === freeGlobal
+	) {
+		root = freeGlobal;
+	}
+
+	/**
+	 * The `punycode` object.
+	 * @name punycode
+	 * @type Object
+	 */
+	var punycode,
+
+	/** Highest positive signed 32-bit float value */
+	maxInt = 2147483647, // aka. 0x7FFFFFFF or 2^31-1
+
+	/** Bootstring parameters */
+	base = 36,
+	tMin = 1,
+	tMax = 26,
+	skew = 38,
+	damp = 700,
+	initialBias = 72,
+	initialN = 128, // 0x80
+	delimiter = '-', // '\x2D'
+
+	/** Regular expressions */
+	regexPunycode = /^xn--/,
+	regexNonASCII = /[^\x20-\x7E]/, // unprintable ASCII chars + non-ASCII chars
+	regexSeparators = /[\x2E\u3002\uFF0E\uFF61]/g, // RFC 3490 separators
+
+	/** Error messages */
+	errors = {
+		'overflow': 'Overflow: input needs wider integers to process',
+		'not-basic': 'Illegal input >= 0x80 (not a basic code point)',
+		'invalid-input': 'Invalid input'
+	},
+
+	/** Convenience shortcuts */
+	baseMinusTMin = base - tMin,
+	floor = Math.floor,
+	stringFromCharCode = String.fromCharCode,
+
+	/** Temporary variable */
+	key;
+
+	/*--------------------------------------------------------------------------*/
+
+	/**
+	 * A generic error utility function.
+	 * @private
+	 * @param {String} type The error type.
+	 * @returns {Error} Throws a `RangeError` with the applicable error message.
+	 */
+	function error(type) {
+		throw new RangeError(errors[type]);
+	}
+
+	/**
+	 * A generic `Array#map` utility function.
+	 * @private
+	 * @param {Array} array The array to iterate over.
+	 * @param {Function} callback The function that gets called for every array
+	 * item.
+	 * @returns {Array} A new array of values returned by the callback function.
+	 */
+	function map(array, fn) {
+		var length = array.length;
+		var result = [];
+		while (length--) {
+			result[length] = fn(array[length]);
+		}
+		return result;
+	}
+
+	/**
+	 * A simple `Array#map`-like wrapper to work with domain name strings or email
+	 * addresses.
+	 * @private
+	 * @param {String} domain The domain name or email address.
+	 * @param {Function} callback The function that gets called for every
+	 * character.
+	 * @returns {Array} A new string of characters returned by the callback
+	 * function.
+	 */
+	function mapDomain(string, fn) {
+		var parts = string.split('@');
+		var result = '';
+		if (parts.length > 1) {
+			// In email addresses, only the domain name should be punycoded. Leave
+			// the local part (i.e. everything up to `@`) intact.
+			result = parts[0] + '@';
+			string = parts[1];
+		}
+		// Avoid `split(regex)` for IE8 compatibility. See #17.
+		string = string.replace(regexSeparators, '\x2E');
+		var labels = string.split('.');
+		var encoded = map(labels, fn).join('.');
+		return result + encoded;
+	}
+
+	/**
+	 * Creates an array containing the numeric code points of each Unicode
+	 * character in the string. While JavaScript uses UCS-2 internally,
+	 * this function will convert a pair of surrogate halves (each of which
+	 * UCS-2 exposes as separate characters) into a single code point,
+	 * matching UTF-16.
+	 * @see `punycode.ucs2.encode`
+	 * @see <https://mathiasbynens.be/notes/javascript-encoding>
+	 * @memberOf punycode.ucs2
+	 * @name decode
+	 * @param {String} string The Unicode input string (UCS-2).
+	 * @returns {Array} The new array of code points.
+	 */
+	function ucs2decode(string) {
+		var output = [],
+		    counter = 0,
+		    length = string.length,
+		    value,
+		    extra;
+		while (counter < length) {
+			value = string.charCodeAt(counter++);
+			if (value >= 0xD800 && value <= 0xDBFF && counter < length) {
+				// high surrogate, and there is a next character
+				extra = string.charCodeAt(counter++);
+				if ((extra & 0xFC00) == 0xDC00) { // low surrogate
+					output.push(((value & 0x3FF) << 10) + (extra & 0x3FF) + 0x10000);
+				} else {
+					// unmatched surrogate; only append this code unit, in case the next
+					// code unit is the high surrogate of a surrogate pair
+					output.push(value);
+					counter--;
+				}
+			} else {
+				output.push(value);
+			}
+		}
+		return output;
+	}
+
+	/**
+	 * Creates a string based on an array of numeric code points.
+	 * @see `punycode.ucs2.decode`
+	 * @memberOf punycode.ucs2
+	 * @name encode
+	 * @param {Array} codePoints The array of numeric code points.
+	 * @returns {String} The new Unicode string (UCS-2).
+	 */
+	function ucs2encode(array) {
+		return map(array, function(value) {
+			var output = '';
+			if (value > 0xFFFF) {
+				value -= 0x10000;
+				output += stringFromCharCode(value >>> 10 & 0x3FF | 0xD800);
+				value = 0xDC00 | value & 0x3FF;
+			}
+			output += stringFromCharCode(value);
+			return output;
+		}).join('');
+	}
+
+	/**
+	 * Converts a basic code point into a digit/integer.
+	 * @see `digitToBasic()`
+	 * @private
+	 * @param {Number} codePoint The basic numeric code point value.
+	 * @returns {Number} The numeric value of a basic code point (for use in
+	 * representing integers) in the range `0` to `base - 1`, or `base` if
+	 * the code point does not represent a value.
+	 */
+	function basicToDigit(codePoint) {
+		if (codePoint - 48 < 10) {
+			return codePoint - 22;
+		}
+		if (codePoint - 65 < 26) {
+			return codePoint - 65;
+		}
+		if (codePoint - 97 < 26) {
+			return codePoint - 97;
+		}
+		return base;
+	}
+
+	/**
+	 * Converts a digit/integer into a basic code point.
+	 * @see `basicToDigit()`
+	 * @private
+	 * @param {Number} digit The numeric value of a basic code point.
+	 * @returns {Number} The basic code point whose value (when used for
+	 * representing integers) is `digit`, which needs to be in the range
+	 * `0` to `base - 1`. If `flag` is non-zero, the uppercase form is
+	 * used; else, the lowercase form is used. The behavior is undefined
+	 * if `flag` is non-zero and `digit` has no uppercase form.
+	 */
+	function digitToBasic(digit, flag) {
+		//  0..25 map to ASCII a..z or A..Z
+		// 26..35 map to ASCII 0..9
+		return digit + 22 + 75 * (digit < 26) - ((flag != 0) << 5);
+	}
+
+	/**
+	 * Bias adaptation function as per section 3.4 of RFC 3492.
+	 * https://tools.ietf.org/html/rfc3492#section-3.4
+	 * @private
+	 */
+	function adapt(delta, numPoints, firstTime) {
+		var k = 0;
+		delta = firstTime ? floor(delta / damp) : delta >> 1;
+		delta += floor(delta / numPoints);
+		for (/* no initialization */; delta > baseMinusTMin * tMax >> 1; k += base) {
+			delta = floor(delta / baseMinusTMin);
+		}
+		return floor(k + (baseMinusTMin + 1) * delta / (delta + skew));
+	}
+
+	/**
+	 * Converts a Punycode string of ASCII-only symbols to a string of Unicode
+	 * symbols.
+	 * @memberOf punycode
+	 * @param {String} input The Punycode string of ASCII-only symbols.
+	 * @returns {String} The resulting string of Unicode symbols.
+	 */
+	function decode(input) {
+		// Don't use UCS-2
+		var output = [],
+		    inputLength = input.length,
+		    out,
+		    i = 0,
+		    n = initialN,
+		    bias = initialBias,
+		    basic,
+		    j,
+		    index,
+		    oldi,
+		    w,
+		    k,
+		    digit,
+		    t,
+		    /** Cached calculation results */
+		    baseMinusT;
+
+		// Handle the basic code points: let `basic` be the number of input code
+		// points before the last delimiter, or `0` if there is none, then copy
+		// the first basic code points to the output.
+
+		basic = input.lastIndexOf(delimiter);
+		if (basic < 0) {
+			basic = 0;
+		}
+
+		for (j = 0; j < basic; ++j) {
+			// if it's not a basic code point
+			if (input.charCodeAt(j) >= 0x80) {
+				error('not-basic');
+			}
+			output.push(input.charCodeAt(j));
+		}
+
+		// Main decoding loop: start just after the last delimiter if any basic code
+		// points were copied; start at the beginning otherwise.
+
+		for (index = basic > 0 ? basic + 1 : 0; index < inputLength; /* no final expression */) {
+
+			// `index` is the index of the next character to be consumed.
+			// Decode a generalized variable-length integer into `delta`,
+			// which gets added to `i`. The overflow checking is easier
+			// if we increase `i` as we go, then subtract off its starting
+			// value at the end to obtain `delta`.
+			for (oldi = i, w = 1, k = base; /* no condition */; k += base) {
+
+				if (index >= inputLength) {
+					error('invalid-input');
+				}
+
+				digit = basicToDigit(input.charCodeAt(index++));
+
+				if (digit >= base || digit > floor((maxInt - i) / w)) {
+					error('overflow');
+				}
+
+				i += digit * w;
+				t = k <= bias ? tMin : (k >= bias + tMax ? tMax : k - bias);
+
+				if (digit < t) {
+					break;
+				}
+
+				baseMinusT = base - t;
+				if (w > floor(maxInt / baseMinusT)) {
+					error('overflow');
+				}
+
+				w *= baseMinusT;
+
+			}
+
+			out = output.length + 1;
+			bias = adapt(i - oldi, out, oldi == 0);
+
+			// `i` was supposed to wrap around from `out` to `0`,
+			// incrementing `n` each time, so we'll fix that now:
+			if (floor(i / out) > maxInt - n) {
+				error('overflow');
+			}
+
+			n += floor(i / out);
+			i %= out;
+
+			// Insert `n` at position `i` of the output
+			output.splice(i++, 0, n);
+
+		}
+
+		return ucs2encode(output);
+	}
+
+	/**
+	 * Converts a string of Unicode symbols (e.g. a domain name label) to a
+	 * Punycode string of ASCII-only symbols.
+	 * @memberOf punycode
+	 * @param {String} input The string of Unicode symbols.
+	 * @returns {String} The resulting Punycode string of ASCII-only symbols.
+	 */
+	function encode(input) {
+		var n,
+		    delta,
+		    handledCPCount,
+		    basicLength,
+		    bias,
+		    j,
+		    m,
+		    q,
+		    k,
+		    t,
+		    currentValue,
+		    output = [],
+		    /** `inputLength` will hold the number of code points in `input`. */
+		    inputLength,
+		    /** Cached calculation results */
+		    handledCPCountPlusOne,
+		    baseMinusT,
+		    qMinusT;
+
+		// Convert the input in UCS-2 to Unicode
+		input = ucs2decode(input);
+
+		// Cache the length
+		inputLength = input.length;
+
+		// Initialize the state
+		n = initialN;
+		delta = 0;
+		bias = initialBias;
+
+		// Handle the basic code points
+		for (j = 0; j < inputLength; ++j) {
+			currentValue = input[j];
+			if (currentValue < 0x80) {
+				output.push(stringFromCharCode(currentValue));
+			}
+		}
+
+		handledCPCount = basicLength = output.length;
+
+		// `handledCPCount` is the number of code points that have been handled;
+		// `basicLength` is the number of basic code points.
+
+		// Finish the basic string - if it is not empty - with a delimiter
+		if (basicLength) {
+			output.push(delimiter);
+		}
+
+		// Main encoding loop:
+		while (handledCPCount < inputLength) {
+
+			// All non-basic code points < n have been handled already. Find the next
+			// larger one:
+			for (m = maxInt, j = 0; j < inputLength; ++j) {
+				currentValue = input[j];
+				if (currentValue >= n && currentValue < m) {
+					m = currentValue;
+				}
+			}
+
+			// Increase `delta` enough to advance the decoder's <n,i> state to <m,0>,
+			// but guard against overflow
+			handledCPCountPlusOne = handledCPCount + 1;
+			if (m - n > floor((maxInt - delta) / handledCPCountPlusOne)) {
+				error('overflow');
+			}
+
+			delta += (m - n) * handledCPCountPlusOne;
+			n = m;
+
+			for (j = 0; j < inputLength; ++j) {
+				currentValue = input[j];
+
+				if (currentValue < n && ++delta > maxInt) {
+					error('overflow');
+				}
+
+				if (currentValue == n) {
+					// Represent delta as a generalized variable-length integer
+					for (q = delta, k = base; /* no condition */; k += base) {
+						t = k <= bias ? tMin : (k >= bias + tMax ? tMax : k - bias);
+						if (q < t) {
+							break;
+						}
+						qMinusT = q - t;
+						baseMinusT = base - t;
+						output.push(
+							stringFromCharCode(digitToBasic(t + qMinusT % baseMinusT, 0))
+						);
+						q = floor(qMinusT / baseMinusT);
+					}
+
+					output.push(stringFromCharCode(digitToBasic(q, 0)));
+					bias = adapt(delta, handledCPCountPlusOne, handledCPCount == basicLength);
+					delta = 0;
+					++handledCPCount;
+				}
+			}
+
+			++delta;
+			++n;
+
+		}
+		return output.join('');
+	}
+
+	/**
+	 * Converts a Punycode string representing a domain name or an email address
+	 * to Unicode. Only the Punycoded parts of the input will be converted, i.e.
+	 * it doesn't matter if you call it on a string that has already been
+	 * converted to Unicode.
+	 * @memberOf punycode
+	 * @param {String} input The Punycoded domain name or email address to
+	 * convert to Unicode.
+	 * @returns {String} The Unicode representation of the given Punycode
+	 * string.
+	 */
+	function toUnicode(input) {
+		return mapDomain(input, function(string) {
+			return regexPunycode.test(string)
+				? decode(string.slice(4).toLowerCase())
+				: string;
+		});
+	}
+
+	/**
+	 * Converts a Unicode string representing a domain name or an email address to
+	 * Punycode. Only the non-ASCII parts of the domain name will be converted,
+	 * i.e. it doesn't matter if you call it with a domain that's already in
+	 * ASCII.
+	 * @memberOf punycode
+	 * @param {String} input The domain name or email address to convert, as a
+	 * Unicode string.
+	 * @returns {String} The Punycode representation of the given domain name or
+	 * email address.
+	 */
+	function toASCII(input) {
+		return mapDomain(input, function(string) {
+			return regexNonASCII.test(string)
+				? 'xn--' + encode(string)
+				: string;
+		});
+	}
+
+	/*--------------------------------------------------------------------------*/
+
+	/** Define the public API */
+	punycode = {
+		/**
+		 * A string representing the current Punycode.js version number.
+		 * @memberOf punycode
+		 * @type String
+		 */
+		'version': '1.4.1',
+		/**
+		 * An object of methods to convert from JavaScript's internal character
+		 * representation (UCS-2) to Unicode code points, and back.
+		 * @see <https://mathiasbynens.be/notes/javascript-encoding>
+		 * @memberOf punycode
+		 * @type Object
+		 */
+		'ucs2': {
+			'decode': ucs2decode,
+			'encode': ucs2encode
+		},
+		'decode': decode,
+		'encode': encode,
+		'toASCII': toASCII,
+		'toUnicode': toUnicode
+	};
+
+	/** Expose `punycode` */
+	// Some AMD build optimizers, like r.js, check for specific condition patterns
+	// like the following:
+	if (
+		typeof define == 'function' &&
+		typeof define.amd == 'object' &&
+		define.amd
+	) {
+		define('punycode', function() {
+			return punycode;
+		});
+	} else if (freeExports && freeModule) {
+		if (module.exports == freeExports) {
+			// in Node.js, io.js, or RingoJS v0.8.0+
+			freeModule.exports = punycode;
+		} else {
+			// in Narwhal or RingoJS v0.7.0-
+			for (key in punycode) {
+				punycode.hasOwnProperty(key) && (freeExports[key] = punycode[key]);
+			}
+		}
+	} else {
+		// in Rhino or a web browser
+		root.punycode = punycode;
+	}
+
+}(this));
+
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{}],26:[function(require,module,exports){
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+'use strict';
+
+// If obj.hasOwnProperty has been overridden, then calling
+// obj.hasOwnProperty(prop) will break.
+// See: https://github.com/joyent/node/issues/1707
+function hasOwnProperty(obj, prop) {
+  return Object.prototype.hasOwnProperty.call(obj, prop);
+}
+
+module.exports = function(qs, sep, eq, options) {
+  sep = sep || '&';
+  eq = eq || '=';
+  var obj = {};
+
+  if (typeof qs !== 'string' || qs.length === 0) {
+    return obj;
+  }
+
+  var regexp = /\+/g;
+  qs = qs.split(sep);
+
+  var maxKeys = 1000;
+  if (options && typeof options.maxKeys === 'number') {
+    maxKeys = options.maxKeys;
+  }
+
+  var len = qs.length;
+  // maxKeys <= 0 means that we should not limit keys count
+  if (maxKeys > 0 && len > maxKeys) {
+    len = maxKeys;
+  }
+
+  for (var i = 0; i < len; ++i) {
+    var x = qs[i].replace(regexp, '%20'),
+        idx = x.indexOf(eq),
+        kstr, vstr, k, v;
+
+    if (idx >= 0) {
+      kstr = x.substr(0, idx);
+      vstr = x.substr(idx + 1);
+    } else {
+      kstr = x;
+      vstr = '';
+    }
+
+    k = decodeURIComponent(kstr);
+    v = decodeURIComponent(vstr);
+
+    if (!hasOwnProperty(obj, k)) {
+      obj[k] = v;
+    } else if (isArray(obj[k])) {
+      obj[k].push(v);
+    } else {
+      obj[k] = [obj[k], v];
+    }
+  }
+
+  return obj;
+};
+
+var isArray = Array.isArray || function (xs) {
+  return Object.prototype.toString.call(xs) === '[object Array]';
+};
+
+},{}],27:[function(require,module,exports){
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+'use strict';
+
+var stringifyPrimitive = function(v) {
+  switch (typeof v) {
+    case 'string':
+      return v;
+
+    case 'boolean':
+      return v ? 'true' : 'false';
+
+    case 'number':
+      return isFinite(v) ? v : '';
+
+    default:
+      return '';
+  }
+};
+
+module.exports = function(obj, sep, eq, name) {
+  sep = sep || '&';
+  eq = eq || '=';
+  if (obj === null) {
+    obj = undefined;
+  }
+
+  if (typeof obj === 'object') {
+    return map(objectKeys(obj), function(k) {
+      var ks = encodeURIComponent(stringifyPrimitive(k)) + eq;
+      if (isArray(obj[k])) {
+        return map(obj[k], function(v) {
+          return ks + encodeURIComponent(stringifyPrimitive(v));
+        }).join(sep);
+      } else {
+        return ks + encodeURIComponent(stringifyPrimitive(obj[k]));
+      }
+    }).join(sep);
+
+  }
+
+  if (!name) return '';
+  return encodeURIComponent(stringifyPrimitive(name)) + eq +
+         encodeURIComponent(stringifyPrimitive(obj));
+};
+
+var isArray = Array.isArray || function (xs) {
+  return Object.prototype.toString.call(xs) === '[object Array]';
+};
+
+function map (xs, f) {
+  if (xs.map) return xs.map(f);
+  var res = [];
+  for (var i = 0; i < xs.length; i++) {
+    res.push(f(xs[i], i));
+  }
+  return res;
+}
+
+var objectKeys = Object.keys || function (obj) {
+  var res = [];
+  for (var key in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) res.push(key);
+  }
+  return res;
+};
+
+},{}],28:[function(require,module,exports){
+'use strict';
+
+exports.decode = exports.parse = require('./decode');
+exports.encode = exports.stringify = require('./encode');
+
+},{"./decode":26,"./encode":27}],29:[function(require,module,exports){
 (function (process){
 /*!
  * async
@@ -7072,7 +6391,7 @@ module.exports = mapSize;
 }());
 
 }).call(this,require('_process'))
-},{"_process":4}],31:[function(require,module,exports){
+},{"_process":24}],30:[function(require,module,exports){
 var async       = require('async'),
     urlParser   = require('url'),
     Resource    = require('./Resource'),
@@ -7435,6 +6754,9 @@ Loader.prototype.load = function (cb) {
     // notify of start
     this.emit('start', this);
 
+    // update loading state
+    this.loading = true;
+
     // start the internal queue
     for (var i = 0; i < this._buffer.length; ++i) {
         this._queue.push(this._buffer[i]);
@@ -7471,6 +6793,8 @@ Loader.prototype._loadResource = function (resource, dequeue) {
  * @private
  */
 Loader.prototype._onComplete = function () {
+    this.loading = false;
+
     this.emit('complete', this, this.resources);
 };
 
@@ -7483,15 +6807,14 @@ Loader.prototype._onComplete = function () {
  * @private
  */
 Loader.prototype._onLoad = function (resource) {
-    this.progress += this._progressChunk;
-
-    this.emit('progress', this, resource);
-
     // run middleware, this *must* happen before dequeue so sub-assets get added properly
     this._runMiddleware(resource, this._afterMiddleware, function () {
         resource.emit('afterMiddleware', resource);
 
         this._numToLoad--;
+        
+        this.progress += this._progressChunk;
+        this.emit('progress', this, resource);
 
         if (resource.error) {
             this.emit('error', resource.error, this, resource);
@@ -7530,7 +6853,7 @@ Loader.LOAD_TYPE = Resource.LOAD_TYPE;
 Loader.XHR_READY_STATE = Resource.XHR_READY_STATE;
 Loader.XHR_RESPONSE_TYPE = Resource.XHR_RESPONSE_TYPE;
 
-},{"./Resource":32,"async":30,"eventemitter3":11,"url":9}],32:[function(require,module,exports){
+},{"./Resource":31,"async":29,"eventemitter3":4,"url":36}],31:[function(require,module,exports){
 var EventEmitter = require('eventemitter3'),
     _url = require('url'),
     // tests is CORS is supported in XHR, if not we need to use XDR
@@ -8333,7 +7656,7 @@ function setExtMap(map, extname, val) {
     map[extname] = val;
 }
 
-},{"eventemitter3":11,"url":9}],33:[function(require,module,exports){
+},{"eventemitter3":4,"url":36}],32:[function(require,module,exports){
 module.exports = {
 
     // private property
@@ -8399,7 +7722,7 @@ module.exports = {
     }
 };
 
-},{}],34:[function(require,module,exports){
+},{}],33:[function(require,module,exports){
 module.exports = require('./Loader');
 
 module.exports.Resource = require('./Resource');
@@ -8413,7 +7736,7 @@ module.exports.middleware = {
     }
 };
 
-},{"./Loader":31,"./Resource":32,"./middlewares/caching/memory":35,"./middlewares/parsing/blob":36}],35:[function(require,module,exports){
+},{"./Loader":30,"./Resource":31,"./middlewares/caching/memory":34,"./middlewares/parsing/blob":35}],34:[function(require,module,exports){
 // a simple in-memory cache for resources
 var cache = {};
 
@@ -8435,7 +7758,7 @@ module.exports = function () {
     };
 };
 
-},{}],36:[function(require,module,exports){
+},{}],35:[function(require,module,exports){
 var Resource = require('../../Resource'),
     b64 = require('../../b64');
 
@@ -8495,7 +7818,759 @@ module.exports = function () {
     };
 };
 
-},{"../../Resource":32,"../../b64":33}],37:[function(require,module,exports){
+},{"../../Resource":31,"../../b64":32}],36:[function(require,module,exports){
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+'use strict';
+
+var punycode = require('punycode');
+var util = require('./util');
+
+exports.parse = urlParse;
+exports.resolve = urlResolve;
+exports.resolveObject = urlResolveObject;
+exports.format = urlFormat;
+
+exports.Url = Url;
+
+function Url() {
+  this.protocol = null;
+  this.slashes = null;
+  this.auth = null;
+  this.host = null;
+  this.port = null;
+  this.hostname = null;
+  this.hash = null;
+  this.search = null;
+  this.query = null;
+  this.pathname = null;
+  this.path = null;
+  this.href = null;
+}
+
+// Reference: RFC 3986, RFC 1808, RFC 2396
+
+// define these here so at least they only have to be
+// compiled once on the first module load.
+var protocolPattern = /^([a-z0-9.+-]+:)/i,
+    portPattern = /:[0-9]*$/,
+
+    // Special case for a simple path URL
+    simplePathPattern = /^(\/\/?(?!\/)[^\?\s]*)(\?[^\s]*)?$/,
+
+    // RFC 2396: characters reserved for delimiting URLs.
+    // We actually just auto-escape these.
+    delims = ['<', '>', '"', '`', ' ', '\r', '\n', '\t'],
+
+    // RFC 2396: characters not allowed for various reasons.
+    unwise = ['{', '}', '|', '\\', '^', '`'].concat(delims),
+
+    // Allowed by RFCs, but cause of XSS attacks.  Always escape these.
+    autoEscape = ['\''].concat(unwise),
+    // Characters that are never ever allowed in a hostname.
+    // Note that any invalid chars are also handled, but these
+    // are the ones that are *expected* to be seen, so we fast-path
+    // them.
+    nonHostChars = ['%', '/', '?', ';', '#'].concat(autoEscape),
+    hostEndingChars = ['/', '?', '#'],
+    hostnameMaxLen = 255,
+    hostnamePartPattern = /^[+a-z0-9A-Z_-]{0,63}$/,
+    hostnamePartStart = /^([+a-z0-9A-Z_-]{0,63})(.*)$/,
+    // protocols that can allow "unsafe" and "unwise" chars.
+    unsafeProtocol = {
+      'javascript': true,
+      'javascript:': true
+    },
+    // protocols that never have a hostname.
+    hostlessProtocol = {
+      'javascript': true,
+      'javascript:': true
+    },
+    // protocols that always contain a // bit.
+    slashedProtocol = {
+      'http': true,
+      'https': true,
+      'ftp': true,
+      'gopher': true,
+      'file': true,
+      'http:': true,
+      'https:': true,
+      'ftp:': true,
+      'gopher:': true,
+      'file:': true
+    },
+    querystring = require('querystring');
+
+function urlParse(url, parseQueryString, slashesDenoteHost) {
+  if (url && util.isObject(url) && url instanceof Url) return url;
+
+  var u = new Url;
+  u.parse(url, parseQueryString, slashesDenoteHost);
+  return u;
+}
+
+Url.prototype.parse = function(url, parseQueryString, slashesDenoteHost) {
+  if (!util.isString(url)) {
+    throw new TypeError("Parameter 'url' must be a string, not " + typeof url);
+  }
+
+  // Copy chrome, IE, opera backslash-handling behavior.
+  // Back slashes before the query string get converted to forward slashes
+  // See: https://code.google.com/p/chromium/issues/detail?id=25916
+  var queryIndex = url.indexOf('?'),
+      splitter =
+          (queryIndex !== -1 && queryIndex < url.indexOf('#')) ? '?' : '#',
+      uSplit = url.split(splitter),
+      slashRegex = /\\/g;
+  uSplit[0] = uSplit[0].replace(slashRegex, '/');
+  url = uSplit.join(splitter);
+
+  var rest = url;
+
+  // trim before proceeding.
+  // This is to support parse stuff like "  http://foo.com  \n"
+  rest = rest.trim();
+
+  if (!slashesDenoteHost && url.split('#').length === 1) {
+    // Try fast path regexp
+    var simplePath = simplePathPattern.exec(rest);
+    if (simplePath) {
+      this.path = rest;
+      this.href = rest;
+      this.pathname = simplePath[1];
+      if (simplePath[2]) {
+        this.search = simplePath[2];
+        if (parseQueryString) {
+          this.query = querystring.parse(this.search.substr(1));
+        } else {
+          this.query = this.search.substr(1);
+        }
+      } else if (parseQueryString) {
+        this.search = '';
+        this.query = {};
+      }
+      return this;
+    }
+  }
+
+  var proto = protocolPattern.exec(rest);
+  if (proto) {
+    proto = proto[0];
+    var lowerProto = proto.toLowerCase();
+    this.protocol = lowerProto;
+    rest = rest.substr(proto.length);
+  }
+
+  // figure out if it's got a host
+  // user@server is *always* interpreted as a hostname, and url
+  // resolution will treat //foo/bar as host=foo,path=bar because that's
+  // how the browser resolves relative URLs.
+  if (slashesDenoteHost || proto || rest.match(/^\/\/[^@\/]+@[^@\/]+/)) {
+    var slashes = rest.substr(0, 2) === '//';
+    if (slashes && !(proto && hostlessProtocol[proto])) {
+      rest = rest.substr(2);
+      this.slashes = true;
+    }
+  }
+
+  if (!hostlessProtocol[proto] &&
+      (slashes || (proto && !slashedProtocol[proto]))) {
+
+    // there's a hostname.
+    // the first instance of /, ?, ;, or # ends the host.
+    //
+    // If there is an @ in the hostname, then non-host chars *are* allowed
+    // to the left of the last @ sign, unless some host-ending character
+    // comes *before* the @-sign.
+    // URLs are obnoxious.
+    //
+    // ex:
+    // http://a@b@c/ => user:a@b host:c
+    // http://a@b?@c => user:a host:c path:/?@c
+
+    // v0.12 TODO(isaacs): This is not quite how Chrome does things.
+    // Review our test case against browsers more comprehensively.
+
+    // find the first instance of any hostEndingChars
+    var hostEnd = -1;
+    for (var i = 0; i < hostEndingChars.length; i++) {
+      var hec = rest.indexOf(hostEndingChars[i]);
+      if (hec !== -1 && (hostEnd === -1 || hec < hostEnd))
+        hostEnd = hec;
+    }
+
+    // at this point, either we have an explicit point where the
+    // auth portion cannot go past, or the last @ char is the decider.
+    var auth, atSign;
+    if (hostEnd === -1) {
+      // atSign can be anywhere.
+      atSign = rest.lastIndexOf('@');
+    } else {
+      // atSign must be in auth portion.
+      // http://a@b/c@d => host:b auth:a path:/c@d
+      atSign = rest.lastIndexOf('@', hostEnd);
+    }
+
+    // Now we have a portion which is definitely the auth.
+    // Pull that off.
+    if (atSign !== -1) {
+      auth = rest.slice(0, atSign);
+      rest = rest.slice(atSign + 1);
+      this.auth = decodeURIComponent(auth);
+    }
+
+    // the host is the remaining to the left of the first non-host char
+    hostEnd = -1;
+    for (var i = 0; i < nonHostChars.length; i++) {
+      var hec = rest.indexOf(nonHostChars[i]);
+      if (hec !== -1 && (hostEnd === -1 || hec < hostEnd))
+        hostEnd = hec;
+    }
+    // if we still have not hit it, then the entire thing is a host.
+    if (hostEnd === -1)
+      hostEnd = rest.length;
+
+    this.host = rest.slice(0, hostEnd);
+    rest = rest.slice(hostEnd);
+
+    // pull out port.
+    this.parseHost();
+
+    // we've indicated that there is a hostname,
+    // so even if it's empty, it has to be present.
+    this.hostname = this.hostname || '';
+
+    // if hostname begins with [ and ends with ]
+    // assume that it's an IPv6 address.
+    var ipv6Hostname = this.hostname[0] === '[' &&
+        this.hostname[this.hostname.length - 1] === ']';
+
+    // validate a little.
+    if (!ipv6Hostname) {
+      var hostparts = this.hostname.split(/\./);
+      for (var i = 0, l = hostparts.length; i < l; i++) {
+        var part = hostparts[i];
+        if (!part) continue;
+        if (!part.match(hostnamePartPattern)) {
+          var newpart = '';
+          for (var j = 0, k = part.length; j < k; j++) {
+            if (part.charCodeAt(j) > 127) {
+              // we replace non-ASCII char with a temporary placeholder
+              // we need this to make sure size of hostname is not
+              // broken by replacing non-ASCII by nothing
+              newpart += 'x';
+            } else {
+              newpart += part[j];
+            }
+          }
+          // we test again with ASCII char only
+          if (!newpart.match(hostnamePartPattern)) {
+            var validParts = hostparts.slice(0, i);
+            var notHost = hostparts.slice(i + 1);
+            var bit = part.match(hostnamePartStart);
+            if (bit) {
+              validParts.push(bit[1]);
+              notHost.unshift(bit[2]);
+            }
+            if (notHost.length) {
+              rest = '/' + notHost.join('.') + rest;
+            }
+            this.hostname = validParts.join('.');
+            break;
+          }
+        }
+      }
+    }
+
+    if (this.hostname.length > hostnameMaxLen) {
+      this.hostname = '';
+    } else {
+      // hostnames are always lower case.
+      this.hostname = this.hostname.toLowerCase();
+    }
+
+    if (!ipv6Hostname) {
+      // IDNA Support: Returns a punycoded representation of "domain".
+      // It only converts parts of the domain name that
+      // have non-ASCII characters, i.e. it doesn't matter if
+      // you call it with a domain that already is ASCII-only.
+      this.hostname = punycode.toASCII(this.hostname);
+    }
+
+    var p = this.port ? ':' + this.port : '';
+    var h = this.hostname || '';
+    this.host = h + p;
+    this.href += this.host;
+
+    // strip [ and ] from the hostname
+    // the host field still retains them, though
+    if (ipv6Hostname) {
+      this.hostname = this.hostname.substr(1, this.hostname.length - 2);
+      if (rest[0] !== '/') {
+        rest = '/' + rest;
+      }
+    }
+  }
+
+  // now rest is set to the post-host stuff.
+  // chop off any delim chars.
+  if (!unsafeProtocol[lowerProto]) {
+
+    // First, make 100% sure that any "autoEscape" chars get
+    // escaped, even if encodeURIComponent doesn't think they
+    // need to be.
+    for (var i = 0, l = autoEscape.length; i < l; i++) {
+      var ae = autoEscape[i];
+      if (rest.indexOf(ae) === -1)
+        continue;
+      var esc = encodeURIComponent(ae);
+      if (esc === ae) {
+        esc = escape(ae);
+      }
+      rest = rest.split(ae).join(esc);
+    }
+  }
+
+
+  // chop off from the tail first.
+  var hash = rest.indexOf('#');
+  if (hash !== -1) {
+    // got a fragment string.
+    this.hash = rest.substr(hash);
+    rest = rest.slice(0, hash);
+  }
+  var qm = rest.indexOf('?');
+  if (qm !== -1) {
+    this.search = rest.substr(qm);
+    this.query = rest.substr(qm + 1);
+    if (parseQueryString) {
+      this.query = querystring.parse(this.query);
+    }
+    rest = rest.slice(0, qm);
+  } else if (parseQueryString) {
+    // no query string, but parseQueryString still requested
+    this.search = '';
+    this.query = {};
+  }
+  if (rest) this.pathname = rest;
+  if (slashedProtocol[lowerProto] &&
+      this.hostname && !this.pathname) {
+    this.pathname = '/';
+  }
+
+  //to support http.request
+  if (this.pathname || this.search) {
+    var p = this.pathname || '';
+    var s = this.search || '';
+    this.path = p + s;
+  }
+
+  // finally, reconstruct the href based on what has been validated.
+  this.href = this.format();
+  return this;
+};
+
+// format a parsed object into a url string
+function urlFormat(obj) {
+  // ensure it's an object, and not a string url.
+  // If it's an obj, this is a no-op.
+  // this way, you can call url_format() on strings
+  // to clean up potentially wonky urls.
+  if (util.isString(obj)) obj = urlParse(obj);
+  if (!(obj instanceof Url)) return Url.prototype.format.call(obj);
+  return obj.format();
+}
+
+Url.prototype.format = function() {
+  var auth = this.auth || '';
+  if (auth) {
+    auth = encodeURIComponent(auth);
+    auth = auth.replace(/%3A/i, ':');
+    auth += '@';
+  }
+
+  var protocol = this.protocol || '',
+      pathname = this.pathname || '',
+      hash = this.hash || '',
+      host = false,
+      query = '';
+
+  if (this.host) {
+    host = auth + this.host;
+  } else if (this.hostname) {
+    host = auth + (this.hostname.indexOf(':') === -1 ?
+        this.hostname :
+        '[' + this.hostname + ']');
+    if (this.port) {
+      host += ':' + this.port;
+    }
+  }
+
+  if (this.query &&
+      util.isObject(this.query) &&
+      Object.keys(this.query).length) {
+    query = querystring.stringify(this.query);
+  }
+
+  var search = this.search || (query && ('?' + query)) || '';
+
+  if (protocol && protocol.substr(-1) !== ':') protocol += ':';
+
+  // only the slashedProtocols get the //.  Not mailto:, xmpp:, etc.
+  // unless they had them to begin with.
+  if (this.slashes ||
+      (!protocol || slashedProtocol[protocol]) && host !== false) {
+    host = '//' + (host || '');
+    if (pathname && pathname.charAt(0) !== '/') pathname = '/' + pathname;
+  } else if (!host) {
+    host = '';
+  }
+
+  if (hash && hash.charAt(0) !== '#') hash = '#' + hash;
+  if (search && search.charAt(0) !== '?') search = '?' + search;
+
+  pathname = pathname.replace(/[?#]/g, function(match) {
+    return encodeURIComponent(match);
+  });
+  search = search.replace('#', '%23');
+
+  return protocol + host + pathname + search + hash;
+};
+
+function urlResolve(source, relative) {
+  return urlParse(source, false, true).resolve(relative);
+}
+
+Url.prototype.resolve = function(relative) {
+  return this.resolveObject(urlParse(relative, false, true)).format();
+};
+
+function urlResolveObject(source, relative) {
+  if (!source) return relative;
+  return urlParse(source, false, true).resolveObject(relative);
+}
+
+Url.prototype.resolveObject = function(relative) {
+  if (util.isString(relative)) {
+    var rel = new Url();
+    rel.parse(relative, false, true);
+    relative = rel;
+  }
+
+  var result = new Url();
+  var tkeys = Object.keys(this);
+  for (var tk = 0; tk < tkeys.length; tk++) {
+    var tkey = tkeys[tk];
+    result[tkey] = this[tkey];
+  }
+
+  // hash is always overridden, no matter what.
+  // even href="" will remove it.
+  result.hash = relative.hash;
+
+  // if the relative url is empty, then there's nothing left to do here.
+  if (relative.href === '') {
+    result.href = result.format();
+    return result;
+  }
+
+  // hrefs like //foo/bar always cut to the protocol.
+  if (relative.slashes && !relative.protocol) {
+    // take everything except the protocol from relative
+    var rkeys = Object.keys(relative);
+    for (var rk = 0; rk < rkeys.length; rk++) {
+      var rkey = rkeys[rk];
+      if (rkey !== 'protocol')
+        result[rkey] = relative[rkey];
+    }
+
+    //urlParse appends trailing / to urls like http://www.example.com
+    if (slashedProtocol[result.protocol] &&
+        result.hostname && !result.pathname) {
+      result.path = result.pathname = '/';
+    }
+
+    result.href = result.format();
+    return result;
+  }
+
+  if (relative.protocol && relative.protocol !== result.protocol) {
+    // if it's a known url protocol, then changing
+    // the protocol does weird things
+    // first, if it's not file:, then we MUST have a host,
+    // and if there was a path
+    // to begin with, then we MUST have a path.
+    // if it is file:, then the host is dropped,
+    // because that's known to be hostless.
+    // anything else is assumed to be absolute.
+    if (!slashedProtocol[relative.protocol]) {
+      var keys = Object.keys(relative);
+      for (var v = 0; v < keys.length; v++) {
+        var k = keys[v];
+        result[k] = relative[k];
+      }
+      result.href = result.format();
+      return result;
+    }
+
+    result.protocol = relative.protocol;
+    if (!relative.host && !hostlessProtocol[relative.protocol]) {
+      var relPath = (relative.pathname || '').split('/');
+      while (relPath.length && !(relative.host = relPath.shift()));
+      if (!relative.host) relative.host = '';
+      if (!relative.hostname) relative.hostname = '';
+      if (relPath[0] !== '') relPath.unshift('');
+      if (relPath.length < 2) relPath.unshift('');
+      result.pathname = relPath.join('/');
+    } else {
+      result.pathname = relative.pathname;
+    }
+    result.search = relative.search;
+    result.query = relative.query;
+    result.host = relative.host || '';
+    result.auth = relative.auth;
+    result.hostname = relative.hostname || relative.host;
+    result.port = relative.port;
+    // to support http.request
+    if (result.pathname || result.search) {
+      var p = result.pathname || '';
+      var s = result.search || '';
+      result.path = p + s;
+    }
+    result.slashes = result.slashes || relative.slashes;
+    result.href = result.format();
+    return result;
+  }
+
+  var isSourceAbs = (result.pathname && result.pathname.charAt(0) === '/'),
+      isRelAbs = (
+          relative.host ||
+          relative.pathname && relative.pathname.charAt(0) === '/'
+      ),
+      mustEndAbs = (isRelAbs || isSourceAbs ||
+                    (result.host && relative.pathname)),
+      removeAllDots = mustEndAbs,
+      srcPath = result.pathname && result.pathname.split('/') || [],
+      relPath = relative.pathname && relative.pathname.split('/') || [],
+      psychotic = result.protocol && !slashedProtocol[result.protocol];
+
+  // if the url is a non-slashed url, then relative
+  // links like ../.. should be able
+  // to crawl up to the hostname, as well.  This is strange.
+  // result.protocol has already been set by now.
+  // Later on, put the first path part into the host field.
+  if (psychotic) {
+    result.hostname = '';
+    result.port = null;
+    if (result.host) {
+      if (srcPath[0] === '') srcPath[0] = result.host;
+      else srcPath.unshift(result.host);
+    }
+    result.host = '';
+    if (relative.protocol) {
+      relative.hostname = null;
+      relative.port = null;
+      if (relative.host) {
+        if (relPath[0] === '') relPath[0] = relative.host;
+        else relPath.unshift(relative.host);
+      }
+      relative.host = null;
+    }
+    mustEndAbs = mustEndAbs && (relPath[0] === '' || srcPath[0] === '');
+  }
+
+  if (isRelAbs) {
+    // it's absolute.
+    result.host = (relative.host || relative.host === '') ?
+                  relative.host : result.host;
+    result.hostname = (relative.hostname || relative.hostname === '') ?
+                      relative.hostname : result.hostname;
+    result.search = relative.search;
+    result.query = relative.query;
+    srcPath = relPath;
+    // fall through to the dot-handling below.
+  } else if (relPath.length) {
+    // it's relative
+    // throw away the existing file, and take the new path instead.
+    if (!srcPath) srcPath = [];
+    srcPath.pop();
+    srcPath = srcPath.concat(relPath);
+    result.search = relative.search;
+    result.query = relative.query;
+  } else if (!util.isNullOrUndefined(relative.search)) {
+    // just pull out the search.
+    // like href='?foo'.
+    // Put this after the other two cases because it simplifies the booleans
+    if (psychotic) {
+      result.hostname = result.host = srcPath.shift();
+      //occationaly the auth can get stuck only in host
+      //this especially happens in cases like
+      //url.resolveObject('mailto:local1@domain1', 'local2@domain2')
+      var authInHost = result.host && result.host.indexOf('@') > 0 ?
+                       result.host.split('@') : false;
+      if (authInHost) {
+        result.auth = authInHost.shift();
+        result.host = result.hostname = authInHost.shift();
+      }
+    }
+    result.search = relative.search;
+    result.query = relative.query;
+    //to support http.request
+    if (!util.isNull(result.pathname) || !util.isNull(result.search)) {
+      result.path = (result.pathname ? result.pathname : '') +
+                    (result.search ? result.search : '');
+    }
+    result.href = result.format();
+    return result;
+  }
+
+  if (!srcPath.length) {
+    // no path at all.  easy.
+    // we've already handled the other stuff above.
+    result.pathname = null;
+    //to support http.request
+    if (result.search) {
+      result.path = '/' + result.search;
+    } else {
+      result.path = null;
+    }
+    result.href = result.format();
+    return result;
+  }
+
+  // if a url ENDs in . or .., then it must get a trailing slash.
+  // however, if it ends in anything else non-slashy,
+  // then it must NOT get a trailing slash.
+  var last = srcPath.slice(-1)[0];
+  var hasTrailingSlash = (
+      (result.host || relative.host || srcPath.length > 1) &&
+      (last === '.' || last === '..') || last === '');
+
+  // strip single dots, resolve double dots to parent dir
+  // if the path tries to go above the root, `up` ends up > 0
+  var up = 0;
+  for (var i = srcPath.length; i >= 0; i--) {
+    last = srcPath[i];
+    if (last === '.') {
+      srcPath.splice(i, 1);
+    } else if (last === '..') {
+      srcPath.splice(i, 1);
+      up++;
+    } else if (up) {
+      srcPath.splice(i, 1);
+      up--;
+    }
+  }
+
+  // if the path is allowed to go above the root, restore leading ..s
+  if (!mustEndAbs && !removeAllDots) {
+    for (; up--; up) {
+      srcPath.unshift('..');
+    }
+  }
+
+  if (mustEndAbs && srcPath[0] !== '' &&
+      (!srcPath[0] || srcPath[0].charAt(0) !== '/')) {
+    srcPath.unshift('');
+  }
+
+  if (hasTrailingSlash && (srcPath.join('/').substr(-1) !== '/')) {
+    srcPath.push('');
+  }
+
+  var isAbsolute = srcPath[0] === '' ||
+      (srcPath[0] && srcPath[0].charAt(0) === '/');
+
+  // put the host back
+  if (psychotic) {
+    result.hostname = result.host = isAbsolute ? '' :
+                                    srcPath.length ? srcPath.shift() : '';
+    //occationaly the auth can get stuck only in host
+    //this especially happens in cases like
+    //url.resolveObject('mailto:local1@domain1', 'local2@domain2')
+    var authInHost = result.host && result.host.indexOf('@') > 0 ?
+                     result.host.split('@') : false;
+    if (authInHost) {
+      result.auth = authInHost.shift();
+      result.host = result.hostname = authInHost.shift();
+    }
+  }
+
+  mustEndAbs = mustEndAbs || (result.host && srcPath.length);
+
+  if (mustEndAbs && !isAbsolute) {
+    srcPath.unshift('');
+  }
+
+  if (!srcPath.length) {
+    result.pathname = null;
+    result.path = null;
+  } else {
+    result.pathname = srcPath.join('/');
+  }
+
+  //to support request.http
+  if (!util.isNull(result.pathname) || !util.isNull(result.search)) {
+    result.path = (result.pathname ? result.pathname : '') +
+                  (result.search ? result.search : '');
+  }
+  result.auth = relative.auth || result.auth;
+  result.slashes = result.slashes || relative.slashes;
+  result.href = result.format();
+  return result;
+};
+
+Url.prototype.parseHost = function() {
+  var host = this.host;
+  var port = portPattern.exec(host);
+  if (port) {
+    port = port[0];
+    if (port !== ':') {
+      this.port = port.substr(1);
+    }
+    host = host.substr(0, host.length - port.length);
+  }
+  if (host) this.hostname = host;
+};
+
+},{"./util":37,"punycode":25,"querystring":28}],37:[function(require,module,exports){
+'use strict';
+
+module.exports = {
+  isString: function(arg) {
+    return typeof(arg) === 'string';
+  },
+  isObject: function(arg) {
+    return typeof(arg) === 'object' && arg !== null;
+  },
+  isNull: function(arg) {
+    return arg === null;
+  },
+  isNullOrUndefined: function(arg) {
+    return arg == null;
+  }
+};
+
+},{}],38:[function(require,module,exports){
 var core = require('../core');
 var  Device = require('ismobilejs');
 
@@ -8579,7 +8654,9 @@ function AccessibilityManager(renderer)
    	this.children = [];
 
    	/**
-     * pre bind the functions..
+     * pre-bind the functions
+	 *
+ 	 * @private
      */
    	this._onKeyDown = this._onKeyDown.bind(this);
    	this._onMouseMove = this._onMouseMove.bind(this);
@@ -8950,7 +9027,7 @@ AccessibilityManager.prototype.destroy = function ()
 core.WebGLRenderer.registerPlugin('accessibility', AccessibilityManager);
 core.CanvasRenderer.registerPlugin('accessibility', AccessibilityManager);
 
-},{"../core":58,"./accessibleTarget":38,"ismobilejs":12}],38:[function(require,module,exports){
+},{"../core":60,"./accessibleTarget":39,"ismobilejs":5}],39:[function(require,module,exports){
 /**
  * Default property values of accessible objects
  * used by {@link PIXI.accessibility.AccessibilityManager}.
@@ -9009,7 +9086,7 @@ var accessibleTarget = {
 
 module.exports = accessibleTarget;
 
-},{}],39:[function(require,module,exports){
+},{}],40:[function(require,module,exports){
 /**
  * @file        Main export of the PIXI accessibility library
  * @author      Mat Groves <mat@goodboydigital.com>
@@ -9018,14 +9095,14 @@ module.exports = accessibleTarget;
  */
 
 /**
- * @namespace PIXI.interaction
+ * @namespace PIXI.AccessibilityManager
  */
 module.exports = {
     accessibleTarget:     require('./accessibleTarget'),
     AccessibilityManager: require('./AccessibilityManager')
 };
 
-},{"./AccessibilityManager":37,"./accessibleTarget":38}],40:[function(require,module,exports){
+},{"./AccessibilityManager":38,"./accessibleTarget":39}],41:[function(require,module,exports){
 var GLShader = require('pixi-gl-core').GLShader;
 var Const = require('./const');
 
@@ -9050,7 +9127,7 @@ function checkPrecision(src) {
  *
  * @class
  * @memberof PIXI
- * @param gl {WebGLRenderingContext}
+ * @param gl {WebGLRenderingContext} The current WebGL rendering context
  * @param vertexSrc {string|string[]} The vertex shader source as an array of strings.
  * @param fragmentSrc {string|string[]} The fragment shader source as an array of strings.
  */
@@ -9062,7 +9139,7 @@ Shader.prototype = Object.create(GLShader.prototype);
 Shader.prototype.constructor = Shader;
 module.exports = Shader;
 
-},{"./const":41,"pixi-gl-core":20}],41:[function(require,module,exports){
+},{"./const":42,"pixi-gl-core":14}],42:[function(require,module,exports){
 
 /**
  * Constant values used in pixi
@@ -9380,6 +9457,20 @@ var CONST = {
         DEFAULT:0
     },
 
+    /**
+     * Constants that define the type of gradient on text.
+     *
+     * @static
+     * @constant
+     * @property {object} TEXT_GRADIENT
+     * @property {number} TEXT_GRADIENT.LINEAR_VERTICAL=0
+     * @property {number} TEXT_GRADIENT.LINEAR_HORIZONTAL=1
+     */
+    TEXT_GRADIENT: {
+        LINEAR_VERTICAL: 0,
+        LINEAR_HORIZONTAL: 1
+    },
+
     // TODO: maybe change to SPRITE.BATCH_SIZE: 2000
     // TODO: maybe add PARTICLE.BATCH_SIZE: 15000
     SPRITE_BATCH_SIZE: 4096, //nice balance between mobile and desktop machines
@@ -9389,7 +9480,7 @@ var CONST = {
 
 module.exports = CONST;
 
-},{"./utils/maxRecommendedTextures":113}],42:[function(require,module,exports){
+},{"./utils/maxRecommendedTextures":115}],43:[function(require,module,exports){
 var math = require('../math'),
     utils = require('../utils'),
     DisplayObject = require('./DisplayObject');
@@ -9571,8 +9662,8 @@ Container.prototype.addChildAt = function (child, index)
 /**
  * Swaps the position of 2 Display Objects within this container.
  *
- * @param child {PIXI.DisplayObject}
- * @param child2 {PIXI.DisplayObject}
+ * @param child {PIXI.DisplayObject} First display object to swap
+ * @param child2 {PIXI.DisplayObject} Second display object to swap
  */
 Container.prototype.swapChildren = function (child, child2)
 {
@@ -10025,7 +10116,7 @@ Container.prototype.destroy = function (options)
     this.children = null;
 };
 
-},{"../math":63,"../utils":112,"./DisplayObject":43}],43:[function(require,module,exports){
+},{"../math":65,"../utils":114,"./DisplayObject":44}],44:[function(require,module,exports){
 var math = require('../math'),
     EventEmitter = require('eventemitter3'),
     CONST = require('../const'),
@@ -10053,6 +10144,8 @@ function DisplayObject()
     /**
      * World transform and local transform of this object.
      * This will be reworked in v4.1, please do not use it yet unless you know what are you doing!
+     *
+     * @member {PIXI.Transform|PIXI.TransformStatic}
      */
     this.transform =  new TransformClass();
 
@@ -10083,7 +10176,7 @@ function DisplayObject()
      * The display object container that contains this display object.
      *
      * @member {PIXI.Container}
-     * @readOnly
+     * @readonly
      */
     this.parent = null;
 
@@ -10091,7 +10184,7 @@ function DisplayObject()
      * The multiplied alpha of the displayObject
      *
      * @member {number}
-     * @readOnly
+     * @readonly
      */
     this.worldAlpha = 1;
 
@@ -10139,6 +10232,7 @@ module.exports = DisplayObject;
 Object.defineProperties(DisplayObject.prototype, {
     /**
      * The position of the displayObject on the x axis relative to the local coordinates of the parent.
+     * An alias to position.x
      *
      * @member {number}
      * @memberof PIXI.DisplayObject#
@@ -10156,6 +10250,7 @@ Object.defineProperties(DisplayObject.prototype, {
 
     /**
      * The position of the displayObject on the y axis relative to the local coordinates of the parent.
+     * An alias to position.y
      *
      * @member {number}
      * @memberof PIXI.DisplayObject#
@@ -10175,7 +10270,7 @@ Object.defineProperties(DisplayObject.prototype, {
      * Current transform of the object based on world (parent) factors
      *
      * @member {PIXI.Matrix}
-     * @readOnly
+     * @readonly
      */
     worldTransform: {
         get: function ()
@@ -10188,7 +10283,7 @@ Object.defineProperties(DisplayObject.prototype, {
      * Current transform of the object based on local factors: position, scale, other stuff
      *
      * @member {PIXI.Matrix}
-     * @readOnly
+     * @readonly
      */
     localTransform: {
         get: function ()
@@ -10199,8 +10294,10 @@ Object.defineProperties(DisplayObject.prototype, {
 
     /**
      * The coordinate of the object relative to the local coordinates of the parent.
+     * Assignment by value since pixi-v4.
      *
-     * @member {PIXI.Point}
+     * @member {PIXI.Point|PIXI.ObservablePoint}
+     * @memberof PIXI.DisplayObject#
      */
     position: {
         get: function()
@@ -10208,49 +10305,55 @@ Object.defineProperties(DisplayObject.prototype, {
             return this.transform.position;
         },
         set: function(value) {
-            this.transform.position = value;
+            this.transform.position.copy(value);
         }
     },
 
     /**
      * The scale factor of the object.
+     * Assignment by value since pixi-v4.
      *
-     * @member {PIXI.Point}
+     * @member {PIXI.Point|PIXI.ObservablePoint}
+     * @memberof PIXI.DisplayObject#
      */
     scale: {
         get: function() {
             return this.transform.scale;
         },
         set: function(value) {
-            this.transform.scale = value;
+            this.transform.scale.copy(value);
         }
     },
 
     /**
      * The pivot point of the displayObject that it rotates around
+     * Assignment by value since pixi-v4.
      *
-     * @member {PIXI.Point}
+     * @member {PIXI.Point|PIXI.ObservablePoint}
+     * @memberof PIXI.DisplayObject#
      */
     pivot: {
         get: function() {
             return this.transform.pivot;
         },
         set: function(value) {
-            this.transform.pivot = value;
+            this.transform.pivot.copy(value);
         }
     },
 
     /**
      * The skew factor for the object in radians.
+     * Assignment by value since pixi-v4.
      *
-     * @member {PIXI.Point}
+     * @member {PIXI.ObservablePoint}
+     * @memberof PIXI.DisplayObject#
      */
     skew: {
         get: function() {
             return this.transform.skew;
         },
         set: function(value) {
-            this.transform.skew = value;
+            this.transform.skew.copy(value);
         }
     },
 
@@ -10258,6 +10361,7 @@ Object.defineProperties(DisplayObject.prototype, {
      * The rotation of the object in radians.
      *
      * @member {number}
+     * @memberof PIXI.DisplayObject#
      */
     rotation: {
         get: function ()
@@ -10468,8 +10572,8 @@ DisplayObject.prototype.renderCanvas = function (renderer) // jshint unused:fals
 /**
  * Set the parent Container of this DisplayObject
  *
- * @param container {Container} The Container to add this DisplayObject to
- * @return {Container} The Container that this DisplayObject was added to
+ * @param container {PIXI.Container} The Container to add this DisplayObject to
+ * @return {PIXI.Container} The Container that this DisplayObject was added to
  */
 DisplayObject.prototype.setParent = function (container)
 {
@@ -10494,7 +10598,7 @@ DisplayObject.prototype.setParent = function (container)
  * @param [skewY=0] {number} The Y skew value
  * @param [pivotX=0] {number} The X pivot value
  * @param [pivotY=0] {number} The Y pivot value
- * @return {PIXI.DisplayObject}
+ * @return {PIXI.DisplayObject} The DisplayObject instance
  */
 DisplayObject.prototype.setTransform = function(x, y, scaleX, scaleY, rotation, skewX, skewY, pivotX, pivotY) //jshint ignore:line
 {
@@ -10516,11 +10620,7 @@ DisplayObject.prototype.setTransform = function(x, y, scaleX, scaleY, rotation, 
  */
 DisplayObject.prototype.destroy = function ()
 {
-
-    this.position = null;
-    this.scale = null;
-    this.pivot = null;
-    this.skew = null;
+    this.transform = null;
 
     this.parent = null;
 
@@ -10532,7 +10632,7 @@ DisplayObject.prototype.destroy = function ()
     this.filterArea = null;
 };
 
-},{"../const":41,"../math":63,"./Transform":44,"./TransformStatic":45,"eventemitter3":11}],44:[function(require,module,exports){
+},{"../const":42,"../math":65,"./Transform":45,"./TransformStatic":47,"eventemitter3":4}],45:[function(require,module,exports){
 var math = require('../math');
 
 
@@ -10568,7 +10668,11 @@ function Transform()
      */
     this.scale = new math.Point(1,1);
 
-
+    /**
+     * The skew amount, on the x and y axis.
+     *
+     * @member {PIXI.ObservablePoint}
+     */
     this.skew = new math.ObservablePoint(this.updateSkew, this, 0,0);
 
     /**
@@ -10583,8 +10687,10 @@ function Transform()
      * The rotation value of the object, in radians
      *
      * @member {Number}
+     * @private
      */
     this._rotation = 0;
+
     this._sr = Math.sin(0);
     this._cr = Math.cos(0);
     this._cy  = Math.cos(0);//skewY);
@@ -10610,8 +10716,7 @@ Transform.prototype.updateSkew = function ()
 
 /**
  * Updates the values of the object and applies the parent's transform.
- * @param  parentTransform {PIXI.Transform} The transform of the parent of this object
- *
+ * @param parentTransform {PIXI.Transform} The transform of the parent of this object
  */
 Transform.prototype.updateTransform = function (parentTransform)
 {
@@ -10647,7 +10752,7 @@ Transform.prototype.updateTransform = function (parentTransform)
 
 /**
  * Decomposes a matrix and sets the transforms properties based on it.
- * @param {Matrix}
+ * @param {PIXI.Matrix} The matrix to decompose
  */
 Transform.prototype.setFromMatrix = function (matrix)
 {
@@ -10660,6 +10765,7 @@ Object.defineProperties(Transform.prototype, {
      * The rotation of the object in radians.
      *
      * @member {number}
+     * @memberof PIXI.Transform#
      */
     rotation: {
         get: function () {
@@ -10675,7 +10781,59 @@ Object.defineProperties(Transform.prototype, {
 
 module.exports = Transform;
 
-},{"../math":63}],45:[function(require,module,exports){
+},{"../math":65}],46:[function(require,module,exports){
+var math = require('../math');
+
+
+/**
+ * Generic class to deal with traditional 2D matrix transforms
+ * This will be reworked in v4.1, please do not use it yet unless you know what are you doing!
+ *
+ * @class
+ * @memberof PIXI
+ */
+function TransformManual()
+{
+    /**
+     * @member {PIXI.Matrix} The global matrix transform
+     */
+    this.worldTransform = new math.Matrix();
+    /**
+     * @member {PIXI.Matrix} The local matrix transform
+     */
+    this.localTransform = new math.Matrix();
+
+    this._worldID = 0;
+}
+
+TransformManual.prototype.constructor = TransformManual;
+
+/**
+ * Updates the values of the object and applies the parent's transform.
+ * @param  parentTransform {PIXI.Transform} The transform of the parent of this object
+ *
+ */
+TransformManual.prototype.updateTransform = function (parentTransform)
+{
+
+    var pt = parentTransform.worldTransform;
+    var wt = this.worldTransform;
+    var lt = this.localTransform;
+
+    // concat the parent matrix with the objects transform.
+    wt.a  = lt.a  * pt.a + lt.b  * pt.c;
+    wt.b  = lt.a  * pt.b + lt.b  * pt.d;
+    wt.c  = lt.c  * pt.a + lt.d  * pt.c;
+    wt.d  = lt.c  * pt.b + lt.d  * pt.d;
+    wt.tx = lt.tx * pt.a + lt.ty * pt.c + pt.tx;
+    wt.ty = lt.tx * pt.b + lt.ty * pt.d + pt.ty;
+
+    this._worldID ++;
+};
+
+module.exports = TransformManual;
+
+},{"../math":65}],47:[function(require,module,exports){
 var math = require('../math');
 
 /**
@@ -10810,20 +10968,19 @@ TransformStatic.prototype.updateTransform = function (parentTransform)
 
 /**
  * Decomposes a matrix and sets the transforms properties based on it.
- * @param {Matrix}
+ * @param {PIXI.Matrix} The matrix to decompose
  */
 TransformStatic.prototype.setFromMatrix = function (matrix)
 {
     matrix.decompose(this);
 };
 
-
-
 Object.defineProperties(TransformStatic.prototype, {
     /**
      * The rotation of the object in radians.
      *
      * @member {number}
+     * @memberof PIXI.TransformStatic#
      */
     rotation: {
         get: function () {
@@ -10840,7 +10997,7 @@ Object.defineProperties(TransformStatic.prototype, {
 
 module.exports = TransformStatic;
 
-},{"../math":63}],46:[function(require,module,exports){
+},{"../math":65}],48:[function(require,module,exports){
 var Container = require('../display/Container'),
     RenderTexture = require('../textures/RenderTexture'),
     Texture = require('../textures/Texture'),
@@ -11020,7 +11177,7 @@ module.exports = Graphics;
  * Creates a new Graphics object with the same values as this one.
  * Note that the only the properties of the object are cloned, not its transform (position,scale,etc)
  *
- * @return {PIXI.Graphics}
+ * @return {PIXI.Graphics} A clone of the graphics object
  */
 Graphics.prototype.clone = function ()
 {
@@ -11057,7 +11214,7 @@ Graphics.prototype.clone = function ()
  * @param lineWidth {number} width of the line to draw, will update the objects stored style
  * @param color {number} color of the line to draw, will update the objects stored style
  * @param alpha {number} alpha of the line to draw, will update the objects stored style
- * @return {PIXI.Graphics}
+ * @return {PIXI.Graphics} This Graphics object. Good for chaining method calls
  */
 Graphics.prototype.lineStyle = function (lineWidth, color, alpha)
 {
@@ -11091,8 +11248,8 @@ Graphics.prototype.lineStyle = function (lineWidth, color, alpha)
  *
  * @param x {number} the X coordinate to move to
  * @param y {number} the Y coordinate to move to
- * @return {PIXI.Graphics}
-  */
+ * @return {PIXI.Graphics} This Graphics object. Good for chaining method calls
+ */
 Graphics.prototype.moveTo = function (x, y)
 {
     var shape = new math.Polygon([x,y]);
@@ -11108,7 +11265,7 @@ Graphics.prototype.moveTo = function (x, y)
  *
  * @param x {number} the X coordinate to draw to
  * @param y {number} the Y coordinate to draw to
- * @return {PIXI.Graphics}
+ * @return {PIXI.Graphics} This Graphics object. Good for chaining method calls
  */
 Graphics.prototype.lineTo = function (x, y)
 {
@@ -11126,7 +11283,7 @@ Graphics.prototype.lineTo = function (x, y)
  * @param cpY {number} Control point y
  * @param toX {number} Destination point x
  * @param toY {number} Destination point y
- * @return {PIXI.Graphics}
+ * @return {PIXI.Graphics} This Graphics object. Good for chaining method calls
  */
 Graphics.prototype.quadraticCurveTo = function (cpX, cpY, toX, toY)
 {
@@ -11182,7 +11339,7 @@ Graphics.prototype.quadraticCurveTo = function (cpX, cpY, toX, toY)
  * @param cpY2 {number} Second Control point y
  * @param toX {number} Destination point x
  * @param toY {number} Destination point y
- * @return {PIXI.Graphics}
+ * @return {PIXI.Graphics} This Graphics object. Good for chaining method calls
  */
 Graphics.prototype.bezierCurveTo = function (cpX, cpY, cpX2, cpY2, toX, toY)
 {
@@ -11222,7 +11379,7 @@ Graphics.prototype.bezierCurveTo = function (cpX, cpY, cpX2, cpY2, toX, toY)
  * @param x2 {number} The x-coordinate of the end of the arc
  * @param y2 {number} The y-coordinate of the end of the arc
  * @param radius {number} The radius of the arc
- * @return {PIXI.Graphics}
+ * @return {PIXI.Graphics} This Graphics object. Good for chaining method calls
  */
 Graphics.prototype.arcTo = function (x1, y1, x2, y2, radius)
 {
@@ -11288,8 +11445,8 @@ Graphics.prototype.arcTo = function (x1, y1, x2, y2, radius)
  * @param radius {number} The radius of the circle
  * @param startAngle {number} The starting angle, in radians (0 is at the 3 o'clock position of the arc's circle)
  * @param endAngle {number} The ending angle, in radians
- * @param anticlockwise {boolean} Optional. Specifies whether the drawing should be counterclockwise or clockwise. False is default, and indicates clockwise, while true indicates counter-clockwise.
- * @return {PIXI.Graphics}
+ * @param [anticlockwise=false] {boolean} Specifies whether the drawing should be counterclockwise or clockwise. False is default, and indicates clockwise, while true indicates counter-clockwise.
+ * @return {PIXI.Graphics} This Graphics object. Good for chaining method calls
  */
 Graphics.prototype.arc = function(cx, cy, radius, startAngle, endAngle, anticlockwise)
 {
@@ -11366,7 +11523,7 @@ Graphics.prototype.arc = function(cx, cy, radius, startAngle, endAngle, anticloc
  *
  * @param color {number} the color of the fill
  * @param alpha {number} the alpha of the fill
- * @return {PIXI.Graphics}
+ * @return {PIXI.Graphics} This Graphics object. Good for chaining method calls
  */
 Graphics.prototype.beginFill = function (color, alpha)
 {
@@ -11389,7 +11546,7 @@ Graphics.prototype.beginFill = function (color, alpha)
 /**
  * Applies a fill to the lines and shapes that were added since the last call to the beginFill() method.
  *
- * @return {Graphics}
+ * @return {PIXI.Graphics} This Graphics object. Good for chaining method calls
  */
 Graphics.prototype.endFill = function ()
 {
@@ -11406,7 +11563,7 @@ Graphics.prototype.endFill = function ()
  * @param y {number} The Y coord of the top-left of the rectangle
  * @param width {number} The width of the rectangle
  * @param height {number} The height of the rectangle
- * @return {PIXI.Graphics}
+ * @return {PIXI.Graphics} This Graphics object. Good for chaining method calls
  */
 Graphics.prototype.drawRect = function ( x, y, width, height )
 {
@@ -11422,7 +11579,7 @@ Graphics.prototype.drawRect = function ( x, y, width, height )
  * @param width {number} The width of the rectangle
  * @param height {number} The height of the rectangle
  * @param radius {number} Radius of the rectangle corners
- * @return {PIXI.Graphics}
+ * @return {PIXI.Graphics} This Graphics object. Good for chaining method calls
  */
 Graphics.prototype.drawRoundedRect = function ( x, y, width, height, radius )
 {
@@ -11437,7 +11594,7 @@ Graphics.prototype.drawRoundedRect = function ( x, y, width, height, radius )
  * @param x {number} The X coordinate of the center of the circle
  * @param y {number} The Y coordinate of the center of the circle
  * @param radius {number} The radius of the circle
- * @return {PIXI.Graphics}
+ * @return {PIXI.Graphics} This Graphics object. Good for chaining method calls
  */
 Graphics.prototype.drawCircle = function (x, y, radius)
 {
@@ -11453,7 +11610,7 @@ Graphics.prototype.drawCircle = function (x, y, radius)
  * @param y {number} The Y coordinate of the center of the ellipse
  * @param width {number} The half width of the ellipse
  * @param height {number} The half height of the ellipse
- * @return {PIXI.Graphics}
+ * @return {PIXI.Graphics} This Graphics object. Good for chaining method calls
  */
 Graphics.prototype.drawEllipse = function (x, y, width, height)
 {
@@ -11466,7 +11623,7 @@ Graphics.prototype.drawEllipse = function (x, y, width, height)
  * Draws a polygon using the given path.
  *
  * @param path {number[]|PIXI.Point[]} The path data used to construct the polygon.
- * @return {PIXI.Graphics}
+ * @return {PIXI.Graphics} This Graphics object. Good for chaining method calls
  */
 Graphics.prototype.drawPolygon = function (path)
 {
@@ -11505,7 +11662,7 @@ Graphics.prototype.drawPolygon = function (path)
 /**
  * Clears the graphics that were drawn to this Graphics object, and resets fill and line style settings.
  *
- * @return {PIXI.Graphics}
+ * @return {PIXI.Graphics} This Graphics object. Good for chaining method calls
  */
 Graphics.prototype.clear = function ()
 {
@@ -11519,6 +11676,13 @@ Graphics.prototype.clear = function ()
     return this;
 };
 
+/**
+ * True if graphics consists of one rectangle, and thus, can be drawn like a Sprite and masked with gl.scissor
+ * @returns {boolean}
+ */
+Graphics.prototype.isFastRect = function() {
+    return this.graphicsData.length === 1 && this.graphicsData[0].shape.type === CONST.SHAPES.RECT && !this.graphicsData[0].lineWidth;
+};
 
 /**
  * Renders the object using the WebGL renderer
@@ -11534,7 +11698,7 @@ Graphics.prototype._renderWebGL = function (renderer)
     {
         this.dirty = true;
         this.glDirty = false;
-        this._fastRect = this.graphicsData.length === 1 && this.graphicsData[0].shape.type === CONST.SHAPES.RECT && !this.graphicsData[0].lineWidth;
+        this._fastRect = this.isFastRect();
     }
 
     //TODO this check can be moved to dirty?
@@ -11577,8 +11741,8 @@ Graphics.prototype._renderSpriteRect = function (renderer)
 
     this._spriteRect.transform.worldTransform = this.transform.worldTransform;
 
-    this._spriteRect.anchor.x = -rect.x / rect.width;
-    this._spriteRect.anchor.y = -rect.y / rect.height;
+    this._spriteRect.anchor.set(-rect.x / rect.width, -rect.y / rect.height);
+    this._spriteRect.onAnchorUpdate();
 
     this._spriteRect._renderWebGL(renderer);
 };
@@ -11934,7 +12098,7 @@ Graphics.prototype.destroy = function ()
     this._localBounds = null;
 };
 
-},{"../const":41,"../display/Container":42,"../math":63,"../renderers/canvas/CanvasRenderer":70,"../sprites/Sprite":94,"../textures/RenderTexture":104,"../textures/Texture":105,"./GraphicsData":47,"./utils/bezierCurveTo":49}],47:[function(require,module,exports){
+},{"../const":42,"../display/Container":43,"../math":65,"../renderers/canvas/CanvasRenderer":72,"../sprites/Sprite":96,"../textures/RenderTexture":106,"../textures/Texture":107,"./GraphicsData":49,"./utils/bezierCurveTo":51}],49:[function(require,module,exports){
 /**
  * A GraphicsData object.
  *
@@ -11959,10 +12123,12 @@ function GraphicsData(lineWidth, lineColor, lineAlpha, fillColor, fillAlpha, fil
      * @member {number} the color of the line to draw
      */
     this.lineColor = lineColor;
+
     /*
      * @member {number} the alpha of the line to draw
      */
     this.lineAlpha = lineAlpha;
+
     /*
      * @member {number} cached tint of the line to draw
      */
@@ -11988,7 +12154,6 @@ function GraphicsData(lineWidth, lineColor, lineAlpha, fillColor, fillAlpha, fil
      */
     this.fill = fill;
 
-
     this.holes = [];
 
     /*
@@ -12008,7 +12173,7 @@ module.exports = GraphicsData;
 /**
  * Creates a new GraphicsData object with the same values as this one.
  *
- * @return {PIXI.GraphicsData}
+ * @return {PIXI.GraphicsData} Cloned GraphicsData object
  */
 GraphicsData.prototype.clone = function ()
 {
@@ -12023,6 +12188,10 @@ GraphicsData.prototype.clone = function ()
     );
 };
 
+/**
+ *
+ *
+ */
 GraphicsData.prototype.addHole = function (shape)
 {
     this.holes.push(shape);
@@ -12036,7 +12205,7 @@ GraphicsData.prototype.destroy = function () {
     this.holes = null;
 };
 
-},{}],48:[function(require,module,exports){
+},{}],50:[function(require,module,exports){
 var CanvasRenderer = require('../../renderers/canvas/CanvasRenderer'),
     CONST = require('../../const');
 
@@ -12314,7 +12483,7 @@ CanvasGraphicsRenderer.prototype.destroy = function ()
   this.renderer = null;
 };
 
-},{"../../const":41,"../../renderers/canvas/CanvasRenderer":70}],49:[function(require,module,exports){
+},{"../../const":42,"../../renderers/canvas/CanvasRenderer":72}],51:[function(require,module,exports){
 
 /**
  * Calculate the points for a bezier curve and then draws it.
@@ -12365,7 +12534,7 @@ var bezierCurveTo = function (fromX, fromY, cpX, cpY, cpX2, cpY2, toX, toY, path
 
 module.exports = bezierCurveTo;
 
-},{}],50:[function(require,module,exports){
+},{}],52:[function(require,module,exports){
 var utils = require('../../utils'),
     CONST = require('../../const'),
     ObjectRenderer = require('../../renderers/webgl/utils/ObjectRenderer'),
@@ -12586,7 +12755,7 @@ GraphicsRenderer.prototype.getWebGLData = function (webGL, type)
     return webGLData;
 };
 
-},{"../../const":41,"../../renderers/webgl/WebGLRenderer":77,"../../renderers/webgl/utils/ObjectRenderer":87,"../../utils":112,"./WebGLGraphicsData":51,"./shaders/PrimitiveShader":52,"./utils/buildCircle":53,"./utils/buildPoly":55,"./utils/buildRectangle":56,"./utils/buildRoundedRectangle":57}],51:[function(require,module,exports){
+},{"../../const":42,"../../renderers/webgl/WebGLRenderer":79,"../../renderers/webgl/utils/ObjectRenderer":89,"../../utils":114,"./WebGLGraphicsData":53,"./shaders/PrimitiveShader":54,"./utils/buildCircle":55,"./utils/buildPoly":57,"./utils/buildRectangle":58,"./utils/buildRoundedRectangle":59}],53:[function(require,module,exports){
 var glCore = require('pixi-gl-core');
 
 
@@ -12713,7 +12882,7 @@ WebGLGraphicsData.prototype.destroy = function ()
     this.glIndices = null;
 };
 
-},{"pixi-gl-core":20}],52:[function(require,module,exports){
+},{"pixi-gl-core":14}],54:[function(require,module,exports){
 var Shader = require('../../../Shader');
 
 /**
@@ -12762,7 +12931,7 @@ PrimitiveShader.prototype.constructor = PrimitiveShader;
 
 module.exports = PrimitiveShader;
 
-},{"../../../Shader":40}],53:[function(require,module,exports){
+},{"../../../Shader":41}],55:[function(require,module,exports){
 var buildLine = require('./buildLine'),
     CONST = require('../../../const'),
     utils = require('../../../utils');
@@ -12851,7 +13020,7 @@ var buildCircle = function (graphicsData, webGLData)
 
 module.exports = buildCircle;
 
-},{"../../../const":41,"../../../utils":112,"./buildLine":54}],54:[function(require,module,exports){
+},{"../../../const":42,"../../../utils":114,"./buildLine":56}],56:[function(require,module,exports){
 var math = require('../../../math'),
     utils = require('../../../utils');
 
@@ -13072,7 +13241,7 @@ var buildLine = function (graphicsData, webGLData)
 
 module.exports = buildLine;
 
-},{"../../../math":63,"../../../utils":112}],55:[function(require,module,exports){
+},{"../../../math":65,"../../../utils":114}],57:[function(require,module,exports){
 var buildLine = require('./buildLine'),
     utils = require('../../../utils'),
     earcut = require('earcut');
@@ -13151,7 +13320,7 @@ var buildPoly = function (graphicsData, webGLData)
 
 module.exports = buildPoly;
 
-},{"../../../utils":112,"./buildLine":54,"earcut":10}],56:[function(require,module,exports){
+},{"../../../utils":114,"./buildLine":56,"earcut":3}],58:[function(require,module,exports){
 var buildLine = require('./buildLine'),
     utils = require('../../../utils');
 
@@ -13223,7 +13392,7 @@ var buildRectangle = function (graphicsData, webGLData)
 
 module.exports = buildRectangle;
 
-},{"../../../utils":112,"./buildLine":54}],57:[function(require,module,exports){
+},{"../../../utils":114,"./buildLine":56}],59:[function(require,module,exports){
 var earcut = require('earcut'),
     buildLine = require('./buildLine'),
     utils = require('../../../utils');
@@ -13353,7 +13522,7 @@ var quadraticBezierCurve = function (fromX, fromY, cpX, cpY, toX, toY, out)// js
 
 module.exports = buildRoundedRectangle;
 
-},{"../../../utils":112,"./buildLine":54,"earcut":10}],58:[function(require,module,exports){
+},{"../../../utils":114,"./buildLine":56,"earcut":3}],60:[function(require,module,exports){
 /**
  * @file        Main export of the PIXI core library
  * @author      Mat Groves <mat@goodboydigital.com>
@@ -13375,6 +13544,7 @@ var core = module.exports = Object.assign(require('./const'), require('./math'),
     Container:              require('./display/Container'),
     Transform:              require('./display/Transform'),
     TransformStatic:        require('./display/TransformStatic'),
+    TransformManual:        require('./display/TransformManual'),
 
     // sprites
     Sprite:                 require('./sprites/Sprite'),
@@ -13450,7 +13620,7 @@ var core = module.exports = Object.assign(require('./const'), require('./math'),
     }
 });
 
-},{"./Shader":40,"./const":41,"./display/Container":42,"./display/DisplayObject":43,"./display/Transform":44,"./display/TransformStatic":45,"./graphics/Graphics":46,"./graphics/GraphicsData":47,"./graphics/canvas/CanvasGraphicsRenderer":48,"./graphics/webgl/GraphicsRenderer":50,"./math":63,"./renderers/canvas/CanvasRenderer":70,"./renderers/canvas/utils/CanvasRenderTarget":72,"./renderers/webgl/WebGLRenderer":77,"./renderers/webgl/filters/Filter":79,"./renderers/webgl/filters/spriteMask/SpriteMaskFilter":82,"./renderers/webgl/managers/WebGLManager":86,"./renderers/webgl/utils/ObjectRenderer":87,"./renderers/webgl/utils/Quad":88,"./renderers/webgl/utils/RenderTarget":89,"./sprites/Sprite":94,"./sprites/canvas/CanvasSpriteRenderer":95,"./sprites/canvas/CanvasTinter":96,"./sprites/webgl/SpriteRenderer":98,"./text/Text":100,"./text/TextStyle":101,"./textures/BaseRenderTexture":102,"./textures/BaseTexture":103,"./textures/RenderTexture":104,"./textures/Texture":105,"./textures/TextureUvs":106,"./textures/VideoBaseTexture":107,"./ticker":109,"./utils":112,"pixi-gl-core":20}],59:[function(require,module,exports){
+},{"./Shader":41,"./const":42,"./display/Container":43,"./display/DisplayObject":44,"./display/Transform":45,"./display/TransformManual":46,"./display/TransformStatic":47,"./graphics/Graphics":48,"./graphics/GraphicsData":49,"./graphics/canvas/CanvasGraphicsRenderer":50,"./graphics/webgl/GraphicsRenderer":52,"./math":65,"./renderers/canvas/CanvasRenderer":72,"./renderers/canvas/utils/CanvasRenderTarget":74,"./renderers/webgl/WebGLRenderer":79,"./renderers/webgl/filters/Filter":81,"./renderers/webgl/filters/spriteMask/SpriteMaskFilter":84,"./renderers/webgl/managers/WebGLManager":88,"./renderers/webgl/utils/ObjectRenderer":89,"./renderers/webgl/utils/Quad":90,"./renderers/webgl/utils/RenderTarget":91,"./sprites/Sprite":96,"./sprites/canvas/CanvasSpriteRenderer":97,"./sprites/canvas/CanvasTinter":98,"./sprites/webgl/SpriteRenderer":100,"./text/Text":102,"./text/TextStyle":103,"./textures/BaseRenderTexture":104,"./textures/BaseTexture":105,"./textures/RenderTexture":106,"./textures/Texture":107,"./textures/TextureUvs":108,"./textures/VideoBaseTexture":109,"./ticker":111,"./utils":114,"pixi-gl-core":14}],61:[function(require,module,exports){
 // Your friendly neighbour https://en.wikipedia.org/wiki/Dihedral_group of order 16
 
 var ux = [1, 1, 0, -1, -1, -1, 0, 1, 1, 1, 0, -1, -1, -1, 0, 1];
@@ -13614,7 +13784,7 @@ var GroupD8 = {
 
 module.exports = GroupD8;
 
-},{"./Matrix":60}],60:[function(require,module,exports){
+},{"./Matrix":62}],62:[function(require,module,exports){
 // @todo - ignore the too many parameters warning for now
 // should either fix it or change the jshint config
 // jshint -W072
@@ -13813,8 +13983,8 @@ Matrix.prototype.applyInverse = function (pos, newPos)
 /**
  * Translates the matrix on the x and y.
  *
- * @param {number} x
- * @param {number} y
+ * @param {number} x How much to translate x by
+ * @param {number} y How much to translate y by
  * @return {PIXI.Matrix} This matrix. Good for chaining method calls.
  */
 Matrix.prototype.translate = function (x, y)
@@ -13897,15 +14067,15 @@ Matrix.prototype.append = function (matrix)
 /**
  * Sets the matrix based on all the available properties
  *
- * @param {number} x
- * @param {number} y
- * @param {number} pivotX
- * @param {number} pivotY
- * @param {number} scaleX
- * @param {number} scaleY
- * @param {number} rotation
- * @param {number} skewX
- * @param {number} skewY
+ * @param {number} x Position on the x axis
+ * @param {number} y Position on the y axis
+ * @param {number} pivotX Pivot on the x axis
+ * @param {number} pivotY Pivot on the y axis
+ * @param {number} scaleX Scale on the x axis
+ * @param {number} scaleY Scale on the y axis
+ * @param {number} rotation Rotation in radians
+ * @param {number} skewX Skew on the x axis
+ * @param {number} skewY Skew on the y axis
  *
  * @return {PIXI.Matrix} This matrix. Good for chaining method calls.
  */
@@ -13964,8 +14134,8 @@ Matrix.prototype.prepend = function(matrix)
 
 /**
  * Decomposes the matrix (x, y, scaleX, scaleY, and rotation) and sets the properties on to a transform.
- * @param {Transform} the transform to apply the properties to.
- * @return {Transform} The transform with the newly applied properies
+ * @param transform {PIXI.Transform} the transform to apply the properties to.
+ * @return {PIXI.Transform} The transform with the newly applied properies
 */
 Matrix.prototype.decompose = function(transform)
 {
@@ -14103,7 +14273,7 @@ Matrix.IDENTITY = new Matrix();
  */
 Matrix.TEMP_MATRIX = new Matrix();
 
-},{"./Point":62}],61:[function(require,module,exports){
+},{"./Point":64}],63:[function(require,module,exports){
 /**
  * The Point object represents a location in a two-dimensional coordinate system, where x represents
  * the horizontal axis and y represents the vertical axis.
@@ -14193,7 +14363,7 @@ ObservablePoint.prototype.set = function (x, y)
 /**
  * Copies the data from another point
  *
- * @param point {PIXI.Point|{PIXI.ObservablePoint} point to copy from
+ * @param point {PIXI.Point|PIXI.ObservablePoint} point to copy from
  */
 ObservablePoint.prototype.copy = function (point)
 {
@@ -14205,7 +14375,7 @@ ObservablePoint.prototype.copy = function (point)
     }
 };
 
-},{}],62:[function(require,module,exports){
+},{}],64:[function(require,module,exports){
 /**
  * The Point object represents a location in a two-dimensional coordinate system, where x represents
  * the horizontal axis and y represents the vertical axis.
@@ -14256,7 +14426,7 @@ Point.prototype.copy = function (p) {
  * Returns true if the given point is equal to this point
  *
  * @param p {PIXI.Point}
- * @returns {boolean}
+ * @returns {boolean} Whether the given point equal to this point
  */
 Point.prototype.equals = function (p) {
     return (p.x === this.x) && (p.y === this.y);
@@ -14275,7 +14445,7 @@ Point.prototype.set = function (x, y)
     this.y = y || ( (y !== 0) ? this.x : 0 ) ;
 };
 
-},{}],63:[function(require,module,exports){
+},{}],65:[function(require,module,exports){
 /**
  * Math classes and utilities mixed into PIXI namespace.
  *
@@ -14299,7 +14469,7 @@ module.exports = {
     RoundedRectangle:   require('./shapes/RoundedRectangle')
 };
 
-},{"./GroupD8":59,"./Matrix":60,"./ObservablePoint":61,"./Point":62,"./shapes/Circle":64,"./shapes/Ellipse":65,"./shapes/Polygon":66,"./shapes/Rectangle":67,"./shapes/RoundedRectangle":68}],64:[function(require,module,exports){
+},{"./GroupD8":61,"./Matrix":62,"./ObservablePoint":63,"./Point":64,"./shapes/Circle":66,"./shapes/Ellipse":67,"./shapes/Polygon":68,"./shapes/Rectangle":69,"./shapes/RoundedRectangle":70}],66:[function(require,module,exports){
 var Rectangle = require('./Rectangle'),
     CONST = require('../../const');
 
@@ -14336,6 +14506,9 @@ function Circle(x, y, radius)
      * The type of the object, mainly used to avoid `instanceof` checks
      *
      * @member {number}
+     * @readOnly
+     * @default CONST.SHAPES.CIRC
+     * @see PIXI.SHAPES
      */
     this.type = CONST.SHAPES.CIRC;
 }
@@ -14387,7 +14560,7 @@ Circle.prototype.getBounds = function ()
     return new Rectangle(this.x - this.radius, this.y - this.radius, this.radius * 2, this.radius * 2);
 };
 
-},{"../../const":41,"./Rectangle":67}],65:[function(require,module,exports){
+},{"../../const":42,"./Rectangle":69}],67:[function(require,module,exports){
 var Rectangle = require('./Rectangle'),
     CONST = require('../../const');
 
@@ -14431,6 +14604,9 @@ function Ellipse(x, y, width, height)
      * The type of the object, mainly used to avoid `instanceof` checks
      *
      * @member {number}
+     * @readOnly
+     * @default CONST.SHAPES.ELIP
+     * @see PIXI.SHAPES
      */
     this.type = CONST.SHAPES.ELIP;
 }
@@ -14482,7 +14658,7 @@ Ellipse.prototype.getBounds = function ()
     return new Rectangle(this.x - this.width, this.y - this.height, this.width, this.height);
 };
 
-},{"../../const":41,"./Rectangle":67}],66:[function(require,module,exports){
+},{"../../const":42,"./Rectangle":69}],68:[function(require,module,exports){
 var Point = require('../Point'),
     CONST = require('../../const');
 
@@ -14538,6 +14714,9 @@ function Polygon(points_)
      * The type of the object, mainly used to avoid `instanceof` checks
      *
      * @member {number}
+     * @readOnly
+     * @default CONST.SHAPES.POLY
+     * @see PIXI.SHAPES
      */
     this.type = CONST.SHAPES.POLY;
 }
@@ -14597,7 +14776,7 @@ Polygon.prototype.contains = function (x, y)
     return inside;
 };
 
-},{"../../const":41,"../Point":62}],67:[function(require,module,exports){
+},{"../../const":42,"../Point":64}],69:[function(require,module,exports){
 var CONST = require('../../const');
 
 /**
@@ -14640,6 +14819,9 @@ function Rectangle(x, y, width, height)
      * The type of the object, mainly used to avoid `instanceof` checks
      *
      * @member {number}
+     * @readOnly
+     * @default CONST.SHAPES.RECT
+     * @see PIXI.SHAPES
      */
     this.type = CONST.SHAPES.RECT;
 }
@@ -14769,7 +14951,7 @@ Rectangle.prototype.enlarge = function (rect)
     this.height = y2 - y1;
 };
 
-},{"../../const":41}],68:[function(require,module,exports){
+},{"../../const":42}],70:[function(require,module,exports){
 var CONST = require('../../const');
 
 /**
@@ -14819,6 +15001,9 @@ function RoundedRectangle(x, y, width, height, radius)
      * The type of the object, mainly used to avoid `instanceof` checks
      *
      * @member {number}
+     * @readonly
+     * @default CONST.SHAPES.RREC
+     * @see PIXI.SHAPES
      */
     this.type = CONST.SHAPES.RREC;
 }
@@ -14861,7 +15046,7 @@ RoundedRectangle.prototype.contains = function (x, y)
     return false;
 };
 
-},{"../../const":41}],69:[function(require,module,exports){
+},{"../../const":42}],71:[function(require,module,exports){
 var utils = require('../utils'),
     math = require('../math'),
     CONST = require('../const'),
@@ -15151,7 +15336,7 @@ SystemRenderer.prototype.destroy = function (removeView) {
     this._lastObjectRendered = null;
 };
 
-},{"../const":41,"../display/Container":42,"../math":63,"../textures/RenderTexture":104,"../utils":112,"eventemitter3":11}],70:[function(require,module,exports){
+},{"../const":42,"../display/Container":43,"../math":65,"../textures/RenderTexture":106,"../utils":114,"eventemitter3":4}],72:[function(require,module,exports){
 var SystemRenderer = require('../SystemRenderer'),
     CanvasMaskManager = require('./utils/CanvasMaskManager'),
     CanvasRenderTarget = require('./utils/CanvasRenderTarget'),
@@ -15396,14 +15581,16 @@ CanvasRenderer.prototype.destroy = function (removeView)
 };
 
 /**
+ * Resizes the canvas view to the specified width and height.
+ *
  * @extends PIXI.SystemRenderer#resize
  *
- * @param {number} w
- * @param {number} h
+ * @param width {number} The new width of the canvas view
+ * @param height {number} The new height of the canvas view
  */
-CanvasRenderer.prototype.resize = function (w, h)
+CanvasRenderer.prototype.resize = function (width, height)
 {
-    SystemRenderer.prototype.resize.call(this, w, h);
+    SystemRenderer.prototype.resize.call(this, width, height);
 
     //reset the scale mode.. oddly this seems to be reset when the canvas is resized.
     //surely a browser bug?? Let pixi fix that for you..
@@ -15414,7 +15601,7 @@ CanvasRenderer.prototype.resize = function (w, h)
 
 };
 
-},{"../../const":41,"../../utils":112,"../SystemRenderer":69,"./utils/CanvasMaskManager":71,"./utils/CanvasRenderTarget":72,"./utils/mapCanvasBlendModesToPixi":74}],71:[function(require,module,exports){
+},{"../../const":42,"../../utils":114,"../SystemRenderer":71,"./utils/CanvasMaskManager":73,"./utils/CanvasRenderTarget":74,"./utils/mapCanvasBlendModesToPixi":76}],73:[function(require,module,exports){
 var CONST = require('../../../const');
 /**
  * A set of functions used to handle masking.
@@ -15576,7 +15763,7 @@ CanvasMaskManager.prototype.popMask = function (renderer)
 
 CanvasMaskManager.prototype.destroy = function () {};
 
-},{"../../../const":41}],72:[function(require,module,exports){
+},{"../../../const":42}],74:[function(require,module,exports){
 var CONST = require('../../../const');
 
 /**
@@ -15681,7 +15868,7 @@ CanvasRenderTarget.prototype.destroy = function ()
     this.canvas = null;
 };
 
-},{"../../../const":41}],73:[function(require,module,exports){
+},{"../../../const":42}],75:[function(require,module,exports){
 
 /**
  * Checks whether the Canvas BlendModes are supported by the current browser
@@ -15720,16 +15907,17 @@ var canUseNewCanvasBlendModes = function ()
 
 module.exports = canUseNewCanvasBlendModes;
 
-},{}],74:[function(require,module,exports){
+},{}],76:[function(require,module,exports){
 var CONST = require('../../../const'),
 canUseNewCanvasBlendModes = require('./canUseNewCanvasBlendModes');
 
 /**
- * Maps gl blend combinations to WebGL
+ * Maps blend combinations to Canvas
  * @class
  * @memberof PIXI
+ * @param array
  */
-function mapWebGLBlendModesToPixi(array)
+function mapCanvasBlendModesToPixi(array)
 {
     array = array || [];
 
@@ -15778,9 +15966,9 @@ function mapWebGLBlendModesToPixi(array)
     return array;
 }
 
-module.exports = mapWebGLBlendModesToPixi;
+module.exports = mapCanvasBlendModesToPixi;
 
-},{"../../../const":41,"./canUseNewCanvasBlendModes":73}],75:[function(require,module,exports){
+},{"../../../const":42,"./canUseNewCanvasBlendModes":75}],77:[function(require,module,exports){
 
 var CONST = require('../../const');
 
@@ -15891,7 +16079,7 @@ TextureGarbageCollector.prototype.unload = function( displayObject )
     }
 };
 
-},{"../../const":41}],76:[function(require,module,exports){
+},{"../../const":42}],78:[function(require,module,exports){
 var GLTexture = require('pixi-gl-core').GLTexture,
     CONST = require('../../const'),
     RenderTarget = require('./utils/RenderTarget'),
@@ -15902,7 +16090,7 @@ var GLTexture = require('pixi-gl-core').GLTexture,
  *
  * @class
  * @memberof PIXI
- * @param renderer {PIXI.WebGLRenderer}
+ * @param renderer {PIXI.WebGLRenderer} A reference to the current renderer
  */
 var TextureManager = function(renderer)
 {
@@ -16033,9 +16221,9 @@ TextureManager.prototype.updateTexture = function(texture)
  * Deletes the texture from WebGL
  *
  * @param texture {PIXI.BaseTexture|PIXI.Texture} the texture to destroy
- * @param [_skipRemove=false] {boolean} Whether to skip removing the texture from the TextureManager.
+ * @param [skipRemove=false] {boolean} Whether to skip removing the texture from the TextureManager.
  */
-TextureManager.prototype.destroyTexture = function(texture, _skipRemove)
+TextureManager.prototype.destroyTexture = function(texture, skipRemove)
 {
 	texture = texture.baseTexture || texture;
 
@@ -16053,7 +16241,7 @@ TextureManager.prototype.destroyTexture = function(texture, _skipRemove)
 
         delete texture._glTextures[this.renderer.CONTEXT_UID];
 
-        if (!_skipRemove)
+        if (!skipRemove)
         {
             var i = this._managedTextures.indexOf(texture);
             if (i !== -1) {
@@ -16098,7 +16286,7 @@ TextureManager.prototype.destroy = function()
 
 module.exports = TextureManager;
 
-},{"../../const":41,"../../utils":112,"./utils/RenderTarget":89,"pixi-gl-core":20}],77:[function(require,module,exports){
+},{"../../const":42,"../../utils":114,"./utils/RenderTarget":91,"pixi-gl-core":14}],79:[function(require,module,exports){
 var SystemRenderer = require('../SystemRenderer'),
     MaskManager = require('./managers/MaskManager'),
     StencilManager = require('./managers/StencilManager'),
@@ -16149,8 +16337,8 @@ function WebGLRenderer(width, height, options)
     /**
      * The type of this renderer as a standardised const
      *
-     * @member {number}//
-     *
+     * @member {number}
+     * @see PIXI.RENDERER_TYPE
      */
     this.type = CONST.RENDERER_TYPE.WEBGL;
 
@@ -16304,13 +16492,12 @@ WebGLRenderer.prototype._initContext = function ()
  *
  * @param displayObject {PIXI.DisplayObject} the object to be rendered
  * @param renderTexture {PIXI.RenderTexture}
- * @param clear {boolean}
- * @param transform {PIXI.Transform}
- * @param skipUpdateTransform {boolean}
+ * @param [clear] {boolean} Should the canvas be cleared before the new render
+ * @param [transform] {PIXI.Transform}
+ * @param [skipUpdateTransform] {boolean}
  */
 WebGLRenderer.prototype.render = function (displayObject, renderTexture, clear, transform, skipUpdateTransform)
 {
-
 
     // can be handy to know!
     this.renderingToScreen = !renderTexture;
@@ -16663,7 +16850,7 @@ WebGLRenderer.prototype.destroy = function (removeView)
     // this = null;
 };
 
-},{"../../const":41,"../../utils":112,"../SystemRenderer":69,"./TextureGarbageCollector":75,"./TextureManager":76,"./WebGLState":78,"./managers/FilterManager":83,"./managers/MaskManager":84,"./managers/StencilManager":85,"./utils/ObjectRenderer":87,"./utils/RenderTarget":89,"./utils/mapWebGLDrawModesToPixi":92,"./utils/validateContext":93,"pixi-gl-core":20}],78:[function(require,module,exports){
+},{"../../const":42,"../../utils":114,"../SystemRenderer":71,"./TextureGarbageCollector":77,"./TextureManager":78,"./WebGLState":80,"./managers/FilterManager":85,"./managers/MaskManager":86,"./managers/StencilManager":87,"./utils/ObjectRenderer":89,"./utils/RenderTarget":91,"./utils/mapWebGLDrawModesToPixi":94,"./utils/validateContext":95,"pixi-gl-core":14}],80:[function(require,module,exports){
 var mapWebGLBlendModesToPixi = require('./utils/mapWebGLBlendModesToPixi');
 
 /**
@@ -16947,7 +17134,7 @@ WebGLState.prototype.resetToDefault = function()
 
 module.exports = WebGLState;
 
-},{"./utils/mapWebGLBlendModesToPixi":91}],79:[function(require,module,exports){
+},{"./utils/mapWebGLBlendModesToPixi":93}],81:[function(require,module,exports){
 var extractUniformsFromSrc = require('./extractUniformsFromSrc'),
     utils = require('../../../utils'),
     CONST = require('../../../const'),
@@ -17080,9 +17267,8 @@ Filter.defaultFragmentSrc = [
     '}'
 ].join('\n');
 
-},{"../../../const":41,"../../../utils":112,"./extractUniformsFromSrc":80}],80:[function(require,module,exports){
+},{"../../../const":42,"../../../utils":114,"./extractUniformsFromSrc":82}],82:[function(require,module,exports){
 var defaultValue = require('pixi-gl-core').shader.defaultValue;
-var mapSize = require('pixi-gl-core').shader.mapSize;
 
 function extractUniformsFromSrc(vertexSrc, fragmentSrc, mask)
 {
@@ -17143,7 +17329,7 @@ function extractUniformsFromString(string)
 
 module.exports = extractUniformsFromSrc;
 
-},{"pixi-gl-core":20}],81:[function(require,module,exports){
+},{"pixi-gl-core":14}],83:[function(require,module,exports){
 var math = require('../../../math');
 
 /*
@@ -17228,7 +17414,7 @@ module.exports = {
     calculateSpriteMatrix:calculateSpriteMatrix
 };
 
-},{"../../../math":63}],82:[function(require,module,exports){
+},{"../../../math":65}],84:[function(require,module,exports){
 var Filter = require('../Filter'),
     math =  require('../../../../math');
 
@@ -17238,7 +17424,7 @@ var Filter = require('../Filter'),
  * The SpriteMaskFilter class
  *
  * @class
- * @extends PIXI.AbstractFilter
+ * @extends PIXI.Filter
  * @memberof PIXI
  * @param sprite {PIXI.Sprite} the target sprite
  */
@@ -17279,7 +17465,7 @@ SpriteMaskFilter.prototype.apply = function (filterManager, input, output)
     filterManager.applyFilter(this, input, output);
 };
 
-},{"../../../../math":63,"../Filter":79}],83:[function(require,module,exports){
+},{"../../../../math":65,"../Filter":81}],85:[function(require,module,exports){
 
 var WebGLManager = require('./WebGLManager'),
     RenderTarget = require('../utils/RenderTarget'),
@@ -17691,7 +17877,7 @@ FilterManager.prototype.freePotRenderTarget = function(renderTarget)
     this.pool[key].push(renderTarget);
 };
 
-},{"../../../Shader":40,"../../../math":63,"../filters/filterTransforms":81,"../utils/Quad":88,"../utils/RenderTarget":89,"./WebGLManager":86,"bit-twiddle":2}],84:[function(require,module,exports){
+},{"../../../Shader":41,"../../../math":65,"../filters/filterTransforms":83,"../utils/Quad":90,"../utils/RenderTarget":91,"./WebGLManager":88,"bit-twiddle":2}],86:[function(require,module,exports){
 var WebGLManager = require('./WebGLManager'),
     AlphaMaskFilter = require('../filters/spriteMask/SpriteMaskFilter');
 
@@ -17722,8 +17908,8 @@ module.exports = MaskManager;
 /**
  * Applies the Mask and adds it to the current filter stack.
  *
- * @param target {PIXI.DisplayObject}
- * @param maskData {Array<*>}
+ * @param target {PIXI.DisplayObject} Display Object to push the mask to
+ * @param maskData {PIXI.Sprite|PIXI.Graphics}
  */
 MaskManager.prototype.pushMask = function (target, maskData)
 {
@@ -17733,7 +17919,7 @@ MaskManager.prototype.pushMask = function (target, maskData)
     }
     else
     {
-        if(this.enableScissor && !this.scissor && !this.renderer.stencilManager.stencilMaskStack.length && maskData.graphicsData[0].shape.type === 1)
+        if(this.enableScissor && !this.scissor && !this.renderer.stencilManager.stencilMaskStack.length && maskData.isFastRect())
         {
             var matrix = maskData.worldTransform;
 
@@ -17761,7 +17947,7 @@ MaskManager.prototype.pushMask = function (target, maskData)
 /**
  * Removes the last mask from the mask stack and doesn't return it.
  *
- * @param target {PIXI.DisplayObject}
+ * @param target {PIXI.DisplayObject} Display Object to pop the mask from
  * @param maskData {Array<*>}
  */
 MaskManager.prototype.popMask = function (target, maskData)
@@ -17787,8 +17973,8 @@ MaskManager.prototype.popMask = function (target, maskData)
 /**
  * Applies the Mask and adds it to the current filter stack.
  *
- * @param target {PIXI.RenderTarget}
- * @param maskData {PIXI.Sprite}
+ * @param target {PIXI.RenderTarget} Display Object to push the sprite mask to
+ * @param maskData {PIXI.Sprite} Sprite to be used as the mask
  */
 MaskManager.prototype.pushSpriteMask = function (target, maskData)
 {
@@ -17841,6 +18027,11 @@ MaskManager.prototype.popStencilMask = function ()
     this.renderer.stencilManager.popStencil();
 };
 
+/**
+ *
+ * @param target {PIXI.RenderTarget} Display Object to push the scissor mask to
+ * @param maskData
+ */
 MaskManager.prototype.pushScissorMask = function (target, maskData)
 {
     maskData.renderable = true;
@@ -17865,6 +18056,10 @@ MaskManager.prototype.pushScissorMask = function (target, maskData)
     this.scissor = true;
 };
 
+/**
+ *
+ *
+ */
 MaskManager.prototype.popScissorMask = function ()
 {
     this.scissorRenderTarget = null;
@@ -17876,7 +18071,7 @@ MaskManager.prototype.popScissorMask = function ()
     gl.disable(gl.SCISSOR_TEST);
 };
 
-},{"../filters/spriteMask/SpriteMaskFilter":82,"./WebGLManager":86}],85:[function(require,module,exports){
+},{"../filters/spriteMask/SpriteMaskFilter":84,"./WebGLManager":88}],87:[function(require,module,exports){
 var WebGLManager = require('./WebGLManager');
 
 /**
@@ -17989,7 +18184,7 @@ StencilMaskManager.prototype.destroy = function ()
     this.stencilMaskStack.stencilStack = null;
 };
 
-},{"./WebGLManager":86}],86:[function(require,module,exports){
+},{"./WebGLManager":88}],88:[function(require,module,exports){
 /**
  * @class
  * @memberof PIXI
@@ -18030,7 +18225,7 @@ WebGLManager.prototype.destroy = function ()
     this.renderer = null;
 };
 
-},{}],87:[function(require,module,exports){
+},{}],89:[function(require,module,exports){
 var WebGLManager = require('../managers/WebGLManager');
 
 /**
@@ -18070,7 +18265,7 @@ ObjectRenderer.prototype.stop = function ()
 };
 
 /**
- * flushes
+ * Stub method for rendering content and emptying the current batch.
  *
  */
 ObjectRenderer.prototype.flush = function ()
@@ -18088,7 +18283,7 @@ ObjectRenderer.prototype.render = function (object) // jshint unused:false
     // render the object
 };
 
-},{"../managers/WebGLManager":86}],88:[function(require,module,exports){
+},{"../managers/WebGLManager":88}],90:[function(require,module,exports){
 var glCore = require('pixi-gl-core'),
     createIndicesForQuads = require('../../../utils/createIndicesForQuads');
 
@@ -18261,7 +18456,7 @@ Quad.prototype.destroy = function()
 
 module.exports = Quad;
 
-},{"../../../utils/createIndicesForQuads":110,"pixi-gl-core":20}],89:[function(require,module,exports){
+},{"../../../utils/createIndicesForQuads":112,"pixi-gl-core":14}],91:[function(require,module,exports){
 var math = require('../../../math'),
     CONST = require('../../../const'),
     GLFramebuffer = require('pixi-gl-core').GLFramebuffer;
@@ -18276,7 +18471,7 @@ var math = require('../../../math'),
  * @param gl {WebGLRenderingContext} the current WebGL drawing context
  * @param [width=0] {number} the horizontal range of the filter
  * @param [height=0] {number} the vertical range of the filter
- * @param [scaleMode=CONST.SCALE_MODES.DEFAULT] {number} See {@link PIXI.SCALE_MODES} for possible values
+ * @param [scaleMode=PIXI.SCALE_MODES.DEFAULT] {number} See {@link PIXI.SCALE_MODES} for possible values
  * @param [resolution=1] {number} The current resolution / device pixel ratio
  * @param [root=false] {boolean} Whether this object is the root element or not
  */
@@ -18581,7 +18776,7 @@ RenderTarget.prototype.destroy = function ()
     this.texture = null;
 };
 
-},{"../../../const":41,"../../../math":63,"pixi-gl-core":20}],90:[function(require,module,exports){
+},{"../../../const":42,"../../../math":65,"pixi-gl-core":14}],92:[function(require,module,exports){
 var glCore = require('pixi-gl-core');
 
 var fragTemplate = [
@@ -18662,13 +18857,15 @@ function generateIfTestSrc(maxIfs)
 
 module.exports = checkMaxIfStatmentsInShader;
 
-},{"pixi-gl-core":20}],91:[function(require,module,exports){
+},{"pixi-gl-core":14}],93:[function(require,module,exports){
 var CONST = require('../../../const');
 
 /**
  * Maps gl blend combinations to WebGL
  * @class
  * @memberof PIXI
+ * @param gl {WebGLRenderingContext} The current WebGL drawing context
+ * @param array
  */
 function mapWebGLBlendModesToPixi(gl, array)
 {
@@ -18699,13 +18896,15 @@ function mapWebGLBlendModesToPixi(gl, array)
 
 module.exports = mapWebGLBlendModesToPixi;
 
-},{"../../../const":41}],92:[function(require,module,exports){
+},{"../../../const":42}],94:[function(require,module,exports){
 var CONST = require('../../../const');
 
 /**
  * Generic Mask Stack data structure
  * @class
  * @memberof PIXI
+ * @param gl {WebGLRenderingContext} The current WebGL drawing context
+ * @param object
  */
 function mapWebGLDrawModesToPixi(gl, object)
 {
@@ -18723,7 +18922,7 @@ function mapWebGLDrawModesToPixi(gl, object)
 
 module.exports = mapWebGLDrawModesToPixi;
 
-},{"../../../const":41}],93:[function(require,module,exports){
+},{"../../../const":42}],95:[function(require,module,exports){
 
 
 function validateContext(gl)
@@ -18733,13 +18932,13 @@ function validateContext(gl)
 	// this is going to be fairly simple for now.. but at least we have rom to grow!
 	if(!attributes.stencil)
 	{
-		console.warn("Provided WebGL context does not have a stencil buffer, masks may not correctly")
+		console.warn('Provided WebGL context does not have a stencil buffer, masks may not render correctly'); // jshint ignore:line
 	}
 }
 
 module.exports = validateContext;
 
-},{}],94:[function(require,module,exports){
+},{}],96:[function(require,module,exports){
 var math = require('../math'),
     Texture = require('../textures/Texture'),
     Container = require('../display/Container'),
@@ -18771,7 +18970,7 @@ function Sprite(texture)
      * Setting the anchor to 0.5,0.5 means the texture's origin is centered
      * Setting the anchor to 1,1 would mean the texture's origin point will be the bottom right corner
      *
-     * @member {PIXI.Point}
+     * @member {PIXI.ObservablePoint}
      */
     this.anchor = new math.ObservablePoint(this.onAnchorUpdate, this);
 
@@ -18828,6 +19027,7 @@ function Sprite(texture)
      *
      * @member {number}
      * @default 0xFFFFFF
+     * @private
      */
     this.cachedTint = 0xFFFFFF;
 
@@ -19239,11 +19439,11 @@ Sprite.prototype.destroy = function (options)
 
 /**
  * Helper function that creates a new sprite based on the source you provide.
- * The soucre can be - frame id, image url, video url, canvae element, video element, base texture
+ * The source can be - frame id, image url, video url, canvas element, video element, base texture
  *
  * @static
- * @param source {}
- * @return {PIXI.Texture} A Texture
+ * @param {number|string|PIXI.BaseTexture|HTMLCanvasElement|HTMLVideoElement} source Source to create texture from
+ * @return {PIXI.Texture} The newly created texture
  */
 Sprite.from = function (source)
 {
@@ -19285,7 +19485,7 @@ Sprite.fromImage = function (imageId, crossorigin, scaleMode)
     return new Sprite(Texture.fromImage(imageId, crossorigin, scaleMode));
 };
 
-},{"../const":41,"../display/Container":42,"../math":63,"../textures/Texture":105,"../utils":112}],95:[function(require,module,exports){
+},{"../const":42,"../display/Container":43,"../math":65,"../textures/Texture":107,"../utils":114}],97:[function(require,module,exports){
 var CanvasRenderer = require('../../renderers/canvas/CanvasRenderer'),
     CONST = require('../../const'),
     math = require('../../math'),
@@ -19451,7 +19651,7 @@ CanvasSpriteRenderer.prototype.destroy = function (){
   this.renderer = null;
 };
 
-},{"../../const":41,"../../math":63,"../../renderers/canvas/CanvasRenderer":70,"./CanvasTinter":96}],96:[function(require,module,exports){
+},{"../../const":42,"../../math":65,"../../renderers/canvas/CanvasRenderer":72,"./CanvasTinter":98}],98:[function(require,module,exports){
 var utils = require('../../utils'),
 canUseNewCanvasBlendModes = require('../../renderers/canvas/utils/canUseNewCanvasBlendModes');
 /**
@@ -19464,6 +19664,7 @@ module.exports = CanvasTinter;
 /**
  * Basically this method just needs a sprite and a color and tints the sprite with the given color.
  *
+ * @memberof! PIXI.CanvasTinter#
  * @param sprite {PIXI.Sprite} the sprite to tint
  * @param color {number} the color to use to tint the sprite with
  * @return {HTMLCanvasElement} The tinted canvas
@@ -19510,6 +19711,7 @@ CanvasTinter.getTintedTexture = function (sprite, color)
 /**
  * Tint a texture using the 'multiply' operation.
  *
+ * @memberof! PIXI.CanvasTinter#
  * @param texture {PIXI.Texture} the texture to tint
  * @param color {number} the color to use to tint the sprite with
  * @param canvas {HTMLCanvasElement} the current canvas
@@ -19524,7 +19726,7 @@ CanvasTinter.tintWithMultiply = function (texture, color, canvas)
     crop.y *= resolution;
     crop.width *= resolution;
     crop.height *= resolution;
-     
+
     canvas.width = crop.width;
     canvas.height = crop.height;
 
@@ -19564,6 +19766,7 @@ CanvasTinter.tintWithMultiply = function (texture, color, canvas)
 /**
  * Tint a texture using the 'overlay' operation.
  *
+ * @memberof! PIXI.CanvasTinter#
  * @param texture {PIXI.Texture} the texture to tint
  * @param color {number} the color to use to tint the sprite with
  * @param canvas {HTMLCanvasElement} the current canvas
@@ -19605,6 +19808,7 @@ CanvasTinter.tintWithOverlay = function (texture, color, canvas)
 /**
  * Tint a texture pixel per pixel.
  *
+ * @memberof! PIXI.CanvasTinter#
  * @param texture {PIXI.Texture} the texture to tint
  * @param color {number} the color to use to tint the sprite with
  * @param canvas {HTMLCanvasElement} the current canvas
@@ -19656,6 +19860,7 @@ CanvasTinter.tintWithPerPixel = function (texture, color, canvas)
 /**
  * Rounds the specified color according to the CanvasTinter.cacheStepsPerColorChannel.
  *
+ * @memberof! PIXI.CanvasTinter#
  * @param color {number} the color to round, should be a hex color
  */
 CanvasTinter.roundColor = function (color)
@@ -19674,21 +19879,21 @@ CanvasTinter.roundColor = function (color)
 /**
  * Number of steps which will be used as a cap when rounding colors.
  *
- * @member CanvasTinter
+ * @memberof! PIXI.CanvasTinter#
  */
 CanvasTinter.cacheStepsPerColorChannel = 8;
 
 /**
  * Tint cache boolean flag.
  *
- * @member CanvasTinter
+ * @memberof! PIXI.CanvasTinter#
  */
 CanvasTinter.convertTintToImage = false;
 
 /**
  * Whether or not the Canvas BlendModes are supported, consequently the ability to tint using the multiply method.
  *
- * @member CanvasTinter
+ * @memberof! PIXI.CanvasTinter#
  */
 CanvasTinter.canUseMultiply = canUseNewCanvasBlendModes();
 
@@ -19698,7 +19903,7 @@ CanvasTinter.canUseMultiply = canUseNewCanvasBlendModes();
  */
 CanvasTinter.tintMethod = CanvasTinter.canUseMultiply ? CanvasTinter.tintWithMultiply :  CanvasTinter.tintWithPerPixel;
 
-},{"../../renderers/canvas/utils/canUseNewCanvasBlendModes":73,"../../utils":112}],97:[function(require,module,exports){
+},{"../../renderers/canvas/utils/canUseNewCanvasBlendModes":75,"../../utils":114}],99:[function(require,module,exports){
 
 
  var Buffer = function(size)
@@ -19729,7 +19934,7 @@ CanvasTinter.tintMethod = CanvasTinter.canUseMultiply ? CanvasTinter.tintWithMul
    this.uvs = null;
    this.colors  = null;
  };
-},{}],98:[function(require,module,exports){
+},{}],100:[function(require,module,exports){
 var ObjectRenderer = require('../../renderers/webgl/utils/ObjectRenderer'),
     WebGLRenderer = require('../../renderers/webgl/WebGLRenderer'),
     createIndicesForQuads = require('../../utils/createIndicesForQuads'),
@@ -20131,7 +20336,7 @@ SpriteRenderer.prototype.destroy = function ()
 
 };
 
-},{"../../const":41,"../../renderers/webgl/WebGLRenderer":77,"../../renderers/webgl/utils/ObjectRenderer":87,"../../renderers/webgl/utils/checkMaxIfStatmentsInShader":90,"../../utils/createIndicesForQuads":110,"./BatchBuffer":97,"./generateMultiTextureShader":99,"bit-twiddle":2,"pixi-gl-core":20}],99:[function(require,module,exports){
+},{"../../const":42,"../../renderers/webgl/WebGLRenderer":79,"../../renderers/webgl/utils/ObjectRenderer":89,"../../renderers/webgl/utils/checkMaxIfStatmentsInShader":92,"../../utils/createIndicesForQuads":112,"./BatchBuffer":99,"./generateMultiTextureShader":101,"bit-twiddle":2,"pixi-gl-core":14}],101:[function(require,module,exports){
 var Shader = require('../../Shader');
 
 
@@ -20204,10 +20409,11 @@ function generateSampleSrc(maxTextures)
 
 module.exports = generateMultiTextureShader;
 
-},{"../../Shader":40}],100:[function(require,module,exports){
+},{"../../Shader":41}],102:[function(require,module,exports){
 var Sprite = require('../sprites/Sprite'),
     Texture = require('../textures/Texture'),
     math = require('../math'),
+    utils = require('../utils'),
     CONST = require('../const'),
     TextStyle = require('./TextStyle');
 
@@ -20282,6 +20488,7 @@ function Text(text, style, resolution)
     this._font = '';
 
     var texture = Texture.fromCanvas(this.canvas);
+    texture.orig = new math.Rectangle();
     texture.trim = new math.Rectangle();
     Sprite.call(this, texture);
 
@@ -20310,13 +20517,14 @@ Object.defineProperties(Text.prototype, {
         {
             this.updateText(true);
 
-            return this.scale.x * this._texture._frame.width;
+            return Math.abs(this.scale.x) * this.texture.orig.width;
         },
         set: function (value)
         {
             this.updateText(true);
 
-            this.scale.x = value / this._texture._frame.width;
+            var sign = utils.sign(this.scale.x) || 1;
+            this.scale.x = sign * value / this.texture.orig.width;
             this._width = value;
         }
     },
@@ -20332,21 +20540,22 @@ Object.defineProperties(Text.prototype, {
         {
             this.updateText(true);
 
-            return  this.scale.y * this._texture._frame.height;
+            return Math.abs(this.scale.y) * this._texture.orig.height;
         },
         set: function (value)
         {
             this.updateText(true);
 
-            this.scale.y = value / this._texture._frame.height;
-            this._height = value;
+            var sign = utils.sign(this.scale.x) || 1;
+            this.scale.x = sign * value / this.texture.orig.width;
+            this._width = value;
         }
     },
 
     /**
      * Set the style of the text. Set up an event listener to listen for changes on the style object and mark the text as dirty.
      *
-     * @param [style] {object|PIXI.TextStyle} The style parameters
+     * @member {object|PIXI.TextStyle}
      * @memberof PIXI.Text#
      */
     style: {
@@ -20378,7 +20587,7 @@ Object.defineProperties(Text.prototype, {
     /**
      * Set the copy for the text object. To split a line you can use '\n'.
      *
-     * @param text {string} The copy that you would like the text to display
+     * @member {string}
      * @memberof PIXI.Text#
      */
     text: {
@@ -20508,12 +20717,19 @@ Text.prototype.updateText = function (respectDirty)
             if (style.fill)
             {
                 this.drawLetterSpacing(lines[i], linePositionX + xShadowOffset, linePositionY + yShadowOffset + style.padding);
+
+                if (style.stroke && style.strokeThickness)
+                {
+                    this.context.strokeStyle = style.dropShadowColor;
+                    this.drawLetterSpacing(lines[i], linePositionX + xShadowOffset, linePositionY + yShadowOffset + style.padding, true);
+                    this.context.strokeStyle = style.stroke;
+			    }
             }
         }
     }
 
     //set canvas text styles
-    this.context.fillStyle = style.fill;
+    this.context.fillStyle = this._generateFillStyle(style, lines);
 
     //draw lines line by line
     for (i = 0; i < lines.length; i++)
@@ -20546,7 +20762,10 @@ Text.prototype.updateText = function (respectDirty)
 
 /**
  * Render the text with letter-spacing.
- *
+ * @param {string} text - The text to draw
+ * @param {number} x - Horizontal position to draw the text
+ * @param {number} y - Vertical position to draw the text
+ * @param {boolean} isStroke - Is this drawing for the outside stroke of the text? If not, it's for the inside fill
  * @private
  */
 Text.prototype.drawLetterSpacing = function(text, x, y, isStroke)
@@ -20604,17 +20823,17 @@ Text.prototype.updateTexture = function ()
 
     texture.baseTexture.width = this.canvas.width / this.resolution;
     texture.baseTexture.height = this.canvas.height / this.resolution;
-    texture.orig.width = texture._frame.width = this.canvas.width / this.resolution;
-    texture.orig.height = texture._frame.height = this.canvas.height / this.resolution;
+    texture.trim.width = texture._frame.width = this.canvas.width / this.resolution;
+    texture.trim.height = texture._frame.height = this.canvas.height / this.resolution;
 
     texture.trim.x = 0;
     texture.trim.y = -style.padding;
 
-    texture.trim.width = texture._frame.width;
-    texture.trim.height = texture._frame.height - style.padding*2;
+    texture.orig.width = texture._frame.width;
+    texture.orig.height = texture._frame.height - style.padding*2;
 
-    this._width = this.canvas.width / this.resolution;
-    this._height = this.canvas.height / this.resolution;
+    //call sprite onTextureUpdate to update scale if _width or _height were set
+    this._onTextureUpdate();
 
     texture.baseTexture.emit('update',  texture.baseTexture);
 
@@ -20624,7 +20843,7 @@ Text.prototype.updateTexture = function ()
 /**
  * Renders the object using the WebGL renderer
  *
- * @param renderer {PIXI.WebGLRenderer}
+ * @param renderer {PIXI.WebGLRenderer} The renderer
  */
 Text.prototype.renderWebGL = function (renderer)
 {
@@ -20636,7 +20855,7 @@ Text.prototype.renderWebGL = function (renderer)
 /**
  * Renders the object using the Canvas renderer
  *
- * @param renderer {PIXI.CanvasRenderer}
+ * @param renderer {PIXI.CanvasRenderer} The renderer
  * @private
  */
 Text.prototype._renderCanvas = function (renderer)
@@ -20649,7 +20868,8 @@ Text.prototype._renderCanvas = function (renderer)
 /**
  * Calculates the ascent, descent and fontSize of a given fontStyle
  *
- * @param fontStyle {object}
+ * @param fontStyle {string} String representing the style of the font
+ * @return {Object} Font properties object
  * @private
  */
 Text.prototype.determineFontProperties = function (fontStyle)
@@ -20752,7 +20972,8 @@ Text.prototype.determineFontProperties = function (fontStyle)
  * Applies newlines to a string to have it optimally fit into the horizontal
  * bounds set by the Text object's wordWrapWidth property.
  *
- * @param text {string}
+ * @param text {string} String to apply word wrapping to
+ * @return {string} New string with new lines applied where required
  * @private
  */
 Text.prototype.wordWrap = function (text)
@@ -20845,7 +21066,69 @@ Text.prototype._onStyleChange = function ()
 };
 
 /**
- * Destroys this text
+ * Generates the fill style. Can automatically generate a gradient based on the fill style being an array
+ * @return string|Number|CanvasGradient
+ * @private
+ */
+Text.prototype._generateFillStyle = function (style, lines)
+{
+    if (!Array.isArray(style.fill))
+    {
+        return style.fill;
+    }
+    else
+    {
+        // the gradient will be evenly spaced out according to how large the array is.
+        // ['#FF0000', '#00FF00', '#0000FF'] would created stops at 0.25, 0.5 and 0.75
+        var i;
+        var gradient;
+        var totalIterations;
+        var currentIteration;
+        var stop;
+
+        if (style.fillGradientType === CONST.TEXT_GRADIENT.LINEAR_VERTICAL)
+        {
+            // start the gradient at the top center of the canvas, and end at the bottom middle of the canvas
+            gradient = this.context.createLinearGradient(this.canvas.width / 2, 0, this.canvas.width / 2, this.canvas.height);
+
+            // we need to repeat the gradient so that each invididual line of text has the same vertical gradient effect
+            // ['#FF0000', '#00FF00', '#0000FF'] over 2 lines would create stops at 0.125, 0.25, 0.375, 0.625, 0.75, 0.875
+            totalIterations = ( style.fill.length + 1 ) * lines.length;
+            currentIteration = 0;
+            for (i = 0; i < lines.length; i++)
+            {
+                currentIteration += 1;
+                for (var j = 0; j < style.fill.length; j++)
+                {
+                    stop = (currentIteration / totalIterations);
+                    gradient.addColorStop(stop, style.fill[j]);
+                    currentIteration++;
+                }
+            }
+        }
+        else
+        {
+            // start the gradient at the center left of the canvas, and end at the center right of the canvas
+            gradient = this.context.createLinearGradient(0, this.canvas.height / 2, this.canvas.width, this.canvas.height / 2);
+
+            // can just evenly space out the gradients in this case, as multiple lines makes no difference to an even left to right gradient
+            totalIterations = style.fill.length + 1;
+            currentIteration = 1;
+
+            for (i = 0; i < style.fill.length; i++)
+            {
+                stop = currentIteration / totalIterations;
+                gradient.addColorStop(stop, style.fill[i]);
+                currentIteration++;
+            }
+        }
+
+        return gradient;
+    }
+};
+
+/**
+ * Destroys this text object.
  *
  * @param [options] {object|boolean} Options parameter. A boolean will act as if all options have been set to that value
  * @param [options.children=false] {boolean} if set to true, all the children will have their destroy
@@ -20865,7 +21148,7 @@ Text.prototype.destroy = function (options)
     this._style = null;
 };
 
-},{"../const":41,"../math":63,"../sprites/Sprite":94,"../textures/Texture":105,"./TextStyle":101}],101:[function(require,module,exports){
+},{"../const":42,"../math":65,"../sprites/Sprite":96,"../textures/Texture":107,"../utils":114,"./TextStyle":103}],103:[function(require,module,exports){
 var EventEmitter = require('eventemitter3'),
     CONST = require('../const'),
     utils = require('../utils');
@@ -20885,8 +21168,9 @@ var EventEmitter = require('eventemitter3'),
  * @param [style.dropShadowBlur=0] {number} Set a shadow blur radius
  * @param [style.dropShadowColor='#000000'] {string} A fill style to be used on the dropshadow e.g 'red', '#00FF00'
  * @param [style.dropShadowDistance=5] {number} Set a distance of the drop shadow
- * @param [style.fill='black'] {string|number|CanvasGradient|CanvasPattern} A canvas fillstyle that will be used on the
- *      text e.g 'red', '#00FF00'. @see {@link https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/fillStyle|MDN}
+ * @param [style.fill='black'] {string|string[]|number|number[]|CanvasGradient|CanvasPattern} A canvas fillstyle that will be used on the
+ *      text e.g 'red', '#00FF00'. Can be an array to create a gradient eg ['#000000','#FFFFFF'] @see {@link https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/fillStyle|MDN}
+ * @param [style.fillGradientType=PIXI.TEXT_GRADIENT.LINEAR_VERTICAL] {number} If fills styles are supplied, this can change the type/direction of the gradient. See {@link PIXI.TEXT_GRADIENT} for possible values
  * @param [style.fontFamily='Arial'] {string} The font family
  * @param [style.fontSize=26] {number|string} The font size (as a number it converts to px, but as a string, equivalents are '26px','20pt','160%' or '1.6em')
  * @param [style.fontStyle='normal'] {string} The font style ('normal', 'italic' or 'oblique')
@@ -20926,6 +21210,7 @@ TextStyle.prototype._defaults = {
     dropShadowColor: '#000000',
     dropShadowDistance: 5,
     fill: 'black',
+    fillGradientType: CONST.TEXT_GRADIENT.LINEAR_VERTICAL,
     fontFamily: 'Arial',
     fontSize: 26,
     fontStyle: 'normal',
@@ -20947,7 +21232,7 @@ TextStyle.prototype._defaults = {
  * Creates a new TextStyle object with the same values as this one.
  * Note that the only the properties of the object are cloned, not its event emitter.
  *
- * @return {PIXI.TextStyle}
+ * @return {PIXI.TextStyle} New cloned TextStyle object
  */
 TextStyle.prototype.clone = function ()
 {
@@ -21089,6 +21374,21 @@ Object.defineProperties(TextStyle.prototype, {
             if (this._fill !== outputColor)
             {
                 this._fill = outputColor;
+                this.emit(CONST.TEXT_STYLE_CHANGED);
+            }
+        }
+    },
+
+    fillGradientType: {
+        get: function ()
+        {
+            return this._fillGradientType;
+        },
+        set: function (fillGradientType)
+        {
+            if (this._fillGradientType !== fillGradientType)
+            {
+                this._fillGradientType = fillGradientType;
                 this.emit(CONST.TEXT_STYLE_CHANGED);
             }
         }
@@ -21331,13 +21631,22 @@ function getColor(color)
     if (typeof color === 'number')
     {
         return utils.hex2string(color);
-    } else
-    {
-        return color;
     }
+    else if (Array.isArray(color))
+    {
+        for (var i = 0; i < color.length; ++i)
+        {
+            if (typeof color[i] === 'number')
+            {
+                color[i] = utils.hex2string(color[i]);
+            }
+        }
+    }
+
+    return color;
 }
 
-},{"../const":41,"../utils":112,"eventemitter3":11}],102:[function(require,module,exports){
+},{"../const":42,"../utils":114,"eventemitter3":4}],104:[function(require,module,exports){
 var BaseTexture = require('./BaseTexture'),
     CONST = require('../const');
 
@@ -21382,7 +21691,7 @@ var BaseTexture = require('./BaseTexture'),
  * @memberof PIXI
  * @param [width=100] {number} The width of the base render texture
  * @param [height=100] {number} The height of the base render texture
- * @param [scaleMode] {number} See {@link PIXI.SCALE_MODES} for possible values
+ * @param [scaleMode=PIXI.SCALE_MODES.DEFAULT] {number} See {@link PIXI.SCALE_MODES} for possible values
  * @param [resolution=1] {number} The resolution / device pixel ratio of the texture being generated
  */
 function BaseRenderTexture(width, height, scaleMode, resolution)
@@ -21413,6 +21722,8 @@ function BaseRenderTexture(width, height, scaleMode, resolution)
     this._canvasRenderTarget = null;
 
     /**
+     * This will let the renderer know if the texture is valid. If it's not then it cannot be rendered.
+     *
      * @member {boolean}
      */
     this.valid = false;
@@ -21473,7 +21784,7 @@ BaseRenderTexture.prototype.destroy = function ()
 };
 
 
-},{"../const":41,"./BaseTexture":103}],103:[function(require,module,exports){
+},{"../const":42,"./BaseTexture":105}],105:[function(require,module,exports){
 var utils = require('../utils'),
     CONST = require('../const'),
     EventEmitter = require('eventemitter3'),
@@ -21509,7 +21820,7 @@ function BaseTexture(source, scaleMode, resolution)
      * The width of the base texture set when the image has loaded
      *
      * @member {number}
-     * @readOnly
+     * @readonly
      */
     this.width = 100;
 
@@ -21517,7 +21828,7 @@ function BaseTexture(source, scaleMode, resolution)
      * The height of the base texture set when the image has loaded
      *
      * @member {number}
-     * @readOnly
+     * @readonly
      */
     this.height = 100;
 
@@ -21527,14 +21838,14 @@ function BaseTexture(source, scaleMode, resolution)
      * Used to store the actual width of the source of this texture
      *
      * @member {number}
-     * @readOnly
+     * @readonly
      */
     this.realWidth = 100;
     /**
      * Used to store the actual height of the source of this texture
      *
      * @member {number}
-     * @readOnly
+     * @readonly
      */
     this.realHeight = 100;
 
@@ -21553,7 +21864,7 @@ function BaseTexture(source, scaleMode, resolution)
      * This is never true if the underlying source fails to load or has no texture data.
      *
      * @member {boolean}
-     * @readOnly
+     * @readonly
      */
     this.hasLoaded = false;
 
@@ -21589,6 +21900,8 @@ function BaseTexture(source, scaleMode, resolution)
     this.premultipliedAlpha = true;
 
     /**
+     * The image url of the texture
+     *
      * @member {string}
      */
     this.imageUrl = null;
@@ -21608,6 +21921,7 @@ function BaseTexture(source, scaleMode, resolution)
      * Also the texture must be a power of two size to work
      *
      * @member {boolean}
+     * @see PIXI.MIPMAP_TEXTURES
      */
     this.mipmap = CONST.MIPMAP_TEXTURES;
 
@@ -21615,7 +21929,8 @@ function BaseTexture(source, scaleMode, resolution)
      *
      * WebGL Texture wrap mode
      *
-     * @member {boolean}
+     * @member {number}
+     * @see PIXI.WRAP_MODES
      */
     this.wrapMode = CONST.WRAP_MODES.DEFAULT;
 
@@ -21683,11 +21998,9 @@ BaseTexture.prototype.update = function ()
  *
  * The logic state after calling `loadSource` directly or indirectly (eg. `fromImage`, `new BaseTexture`) is:
  *
- *     if (texture.hasLoaded)
- {
+ *     if (texture.hasLoaded) {
  *        // texture ready for use
- *     } else if (texture.isLoading)
- {
+ *     } else if (texture.isLoading) {
  *        // listen to 'loaded' and/or 'error' events on texture
  *     } else {
  *        // not loading, not going to load UNLESS the source is reloaded
@@ -21921,7 +22234,7 @@ BaseTexture.fromCanvas = function (canvas, scaleMode)
     return baseTexture;
 };
 
-},{"../const":41,"../utils":112,"../utils/determineCrossOrigin":111,"bit-twiddle":2,"eventemitter3":11}],104:[function(require,module,exports){
+},{"../const":42,"../utils":114,"../utils/determineCrossOrigin":113,"bit-twiddle":2,"eventemitter3":4}],106:[function(require,module,exports){
 var BaseRenderTexture = require('./BaseRenderTexture'),
     Texture = require('./Texture');
 
@@ -21996,6 +22309,8 @@ function RenderTexture(baseRenderTexture, frame)
     );
 
     /**
+     * This will let the renderer know if the texture is valid. If it's not then it cannot be rendered.
+     *
      * @member {boolean}
      */
     this.valid = true;
@@ -22035,7 +22350,7 @@ RenderTexture.prototype.resize = function (width, height, doNotResizeBaseTexture
  * A short hand way of creating a render texture..
  * @param [width=100] {number} The width of the render texture
  * @param [height=100] {number} The height of the render texture
- * @param [scaleMode] {number} See {@link PIXI.SCALE_MODES} for possible values
+ * @param [scaleMode=PIXI.SCALE_MODES.DEFAULT] {number} See {@link PIXI.SCALE_MODES} for possible values
  * @param [resolution=1] {number} The resolution / device pixel ratio of the texture being generated
  */
 RenderTexture.create = function(width, height, scaleMode, resolution)
@@ -22043,7 +22358,7 @@ RenderTexture.create = function(width, height, scaleMode, resolution)
     return new RenderTexture(new BaseRenderTexture(width, height, scaleMode, resolution));
 };
 
-},{"./BaseRenderTexture":102,"./Texture":105}],105:[function(require,module,exports){
+},{"./BaseRenderTexture":104,"./Texture":107}],107:[function(require,module,exports){
 var BaseTexture = require('./BaseTexture'),
     VideoBaseTexture = require('./VideoBaseTexture'),
     TextureUvs = require('./TextureUvs'),
@@ -22392,7 +22707,7 @@ Texture.prototype._updateUvs = function ()
  * @static
  * @param imageUrl {string} The image url of the texture
  * @param [crossorigin] {boolean} Whether requests should be treated as crossorigin
- * @param [scaleMode] {number} See {@link PIXI.SCALE_MODES} for possible values
+ * @param [scaleMode=PIXI.SCALE_MODES.DEFAULT] {number} See {@link PIXI.SCALE_MODES} for possible values
  * @return {PIXI.Texture} The newly created texture
  */
 Texture.fromImage = function (imageUrl, crossorigin, scaleMode)
@@ -22433,8 +22748,8 @@ Texture.fromFrame = function (frameId)
  *
  * @static
  * @param canvas {HTMLCanvasElement} The canvas element source of the texture
- * @param [scaleMode] {number} See {@link PIXI.SCALE_MODES} for possible values
- * @return {PIXI.Texture}
+ * @param [scaleMode=PIXI.SCALE_MODES.DEFAULT] {number} See {@link PIXI.SCALE_MODES} for possible values
+ * @return {PIXI.Texture} The newly created texture
  */
 Texture.fromCanvas = function (canvas, scaleMode)
 {
@@ -22446,8 +22761,8 @@ Texture.fromCanvas = function (canvas, scaleMode)
  *
  * @static
  * @param video {HTMLVideoElement|string} The URL or actual element of the video
- * @param [scaleMode] {number} See {@link PIXI.SCALE_MODES} for possible values
- * @return {PIXI.Texture} A Texture
+ * @param [scaleMode=PIXI.SCALE_MODES.DEFAULT] {number} See {@link PIXI.SCALE_MODES} for possible values
+ * @return {PIXI.Texture} The newly created texture
  */
 Texture.fromVideo = function (video, scaleMode)
 {
@@ -22465,9 +22780,9 @@ Texture.fromVideo = function (video, scaleMode)
  * Helper function that creates a new Texture based on the video url.
  *
  * @static
- * @param videoUrl {string}
- * @param [scaleMode] {number} See {@link PIXI.SCALE_MODES} for possible values
- * @return {PIXI.Texture} A Texture
+ * @param videoUrl {string} URL of the video
+ * @param [scaleMode=PIXI.SCALE_MODES.DEFAULT] {number} See {@link PIXI.SCALE_MODES} for possible values
+ * @return {PIXI.Texture} The newly created texture
  */
 Texture.fromVideoUrl = function (videoUrl, scaleMode)
 {
@@ -22479,8 +22794,8 @@ Texture.fromVideoUrl = function (videoUrl, scaleMode)
  * The soucre can be - frame id, image url, video url, canvae element, video element, base texture
  *
  * @static
- * @param source {}
- * @return {PIXI.Texture} A Texture
+ * @param {number|string|PIXI.BaseTexture|HTMLCanvasElement|HTMLVideoElement} source Source to create texture from
+ * @return {PIXI.Texture} The newly created texture
  */
 Texture.from = function (source)
 {
@@ -22562,7 +22877,7 @@ Texture.EMPTY.once = function() {};
 Texture.EMPTY.emit = function() {};
 
 
-},{"../math":63,"../utils":112,"./BaseTexture":103,"./TextureUvs":106,"./VideoBaseTexture":107,"eventemitter3":11}],106:[function(require,module,exports){
+},{"../math":65,"../utils":114,"./BaseTexture":105,"./TextureUvs":108,"./VideoBaseTexture":109,"eventemitter3":4}],108:[function(require,module,exports){
 
 /**
  * A standard object to store the Uvs of a texture
@@ -22647,7 +22962,7 @@ TextureUvs.prototype.set = function (frame, baseFrame, rotate)
     this.uvsUint32[3] = (((this.y3 * 65535) & 0xFFFF) << 16) | ((this.x3 * 65535) & 0xFFFF);
 };
 
-},{"../math/GroupD8":59}],107:[function(require,module,exports){
+},{"../math/GroupD8":61}],109:[function(require,module,exports){
 var BaseTexture = require('./BaseTexture'),
     utils = require('../utils');
 
@@ -22676,8 +22991,8 @@ var BaseTexture = require('./BaseTexture'),
  * @class
  * @extends PIXI.BaseTexture
  * @memberof PIXI
- * @param source {HTMLVideoElement}
- * @param [scaleMode] {number} See {@link PIXI.SCALE_MODES} for possible values
+ * @param source {HTMLVideoElement} Video source
+ * @param [scaleMode=PIXI.SCALE_MODES.DEFAULT] {number} See {@link PIXI.SCALE_MODES} for possible values
  */
 function VideoBaseTexture(source, scaleMode)
 {
@@ -22809,9 +23124,9 @@ VideoBaseTexture.prototype.destroy = function ()
  * Mimic Pixi BaseTexture.from.... method.
  *
  * @static
- * @param video {HTMLVideoElement}
- * @param scaleMode {number} See {@link PIXI.SCALE_MODES} for possible values
- * @return {PIXI.VideoBaseTexture}
+ * @param video {HTMLVideoElement} Video to create texture from
+ * @param [scaleMode=PIXI.SCALE_MODES.DEFAULT] {number} See {@link PIXI.SCALE_MODES} for possible values
+ * @return {PIXI.VideoBaseTexture} Newly created VideoBaseTexture
  */
 VideoBaseTexture.fromVideo = function (video, scaleMode)
 {
@@ -22841,7 +23156,7 @@ VideoBaseTexture.fromVideo = function (video, scaleMode)
  * @param [videoSrc.mime] {string} The mimetype of the video (e.g. 'video/mp4'). If not specified
  *  the url's extension will be used as the second part of the mime type.
  * @param scaleMode {number} See {@link PIXI.SCALE_MODES} for possible values
- * @return {PIXI.VideoBaseTexture}
+ * @return {PIXI.VideoBaseTexture} Newly created VideoBaseTexture
  */
 VideoBaseTexture.fromUrl = function (videoSrc, scaleMode)
 {
@@ -22884,7 +23199,7 @@ function createSource(path, type)
     return source;
 }
 
-},{"../utils":112,"./BaseTexture":103}],108:[function(require,module,exports){
+},{"../utils":114,"./BaseTexture":105}],110:[function(require,module,exports){
 var CONST = require('../const'),
     EventEmitter = require('eventemitter3'),
     // Internal event used by composed emitter
@@ -23123,7 +23438,7 @@ Ticker.prototype._startIfPossible = function _startIfPossible()
  *
  * @param fn {Function} The listener function to be added for updates
  * @param [context] {Function} The listener context
- * @returns {PIXI.ticker.Ticker} this
+ * @returns {PIXI.ticker.Ticker} This instance of a ticker
  */
 Ticker.prototype.add = function add(fn, context)
 {
@@ -23141,7 +23456,7 @@ Ticker.prototype.add = function add(fn, context)
  *
  * @param fn {Function} The listener function to be added for one update
  * @param [context] {Function} The listener context
- * @returns {PIXI.ticker.Ticker} this
+ * @returns {PIXI.ticker.Ticker} This instance of a ticker
  */
 Ticker.prototype.addOnce = function addOnce(fn, context)
 {
@@ -23159,7 +23474,7 @@ Ticker.prototype.addOnce = function addOnce(fn, context)
  *
  * @param [fn] {Function} The listener function to be removed
  * @param [context] {Function} The listener context to be removed
- * @returns {PIXI.ticker.Ticker} this
+ * @returns {PIXI.ticker.Ticker} This instance of a ticker
  */
 Ticker.prototype.remove = function remove(fn, context)
 {
@@ -23260,7 +23575,7 @@ Ticker.prototype.update = function update(currentTime)
 
 module.exports = Ticker;
 
-},{"../const":41,"eventemitter3":11}],109:[function(require,module,exports){
+},{"../const":42,"eventemitter3":4}],111:[function(require,module,exports){
 var Ticker = require('./Ticker');
 
 /**
@@ -23316,13 +23631,14 @@ module.exports = {
     Ticker: Ticker
 };
 
-},{"./Ticker":108}],110:[function(require,module,exports){
+},{"./Ticker":110}],112:[function(require,module,exports){
 /**
  * Generic Mask Stack data structure
  * @class
  * @memberof PIXI
+ * @param size {number} Number of quads
+ * @return {Uint16Array} indices
  */
-
 var createIndicesForQuads = function (size)
 {
     // the total number of indices in our array, there are 6 points per quad.
@@ -23347,7 +23663,7 @@ var createIndicesForQuads = function (size)
 
 module.exports = createIndicesForQuads;
 
-},{}],111:[function(require,module,exports){
+},{}],113:[function(require,module,exports){
 var tempAnchor;
 var _url = require('url');
 
@@ -23392,7 +23708,7 @@ var determineCrossOrigin = function (url, loc) {
 
 module.exports = determineCrossOrigin;
 
-},{"url":9}],112:[function(require,module,exports){
+},{"url":36}],114:[function(require,module,exports){
 var CONST = require('../const');
 
 /**
@@ -23408,6 +23724,7 @@ var utils = module.exports = {
     /**
      * Gets the next unique identifier
      *
+     * @memberof PIXI.utils
      * @return {number} The next unique identifier to use.
      */
     uid: function ()
@@ -23418,8 +23735,9 @@ var utils = module.exports = {
     /**
      * Converts a hex color number to an [R, G, B] array
      *
+     * @memberof PIXI.utils
      * @param hex {number}
-     * @param  {number[]} [out=[]]
+     * @param  {number[]} [out=[]] If supplied, this array will be used rather than returning a new one
      * @return {number[]} An array representing the [R, G, B] of the color.
      */
     hex2rgb: function (hex, out)
@@ -23436,7 +23754,8 @@ var utils = module.exports = {
     /**
      * Converts a hex color number to a string.
      *
-     * @param hex {number}
+     * @memberof PIXI.utils
+     * @param hex {number} Number in hex
      * @return {string} The string color.
      */
     hex2string: function (hex)
@@ -23450,7 +23769,8 @@ var utils = module.exports = {
     /**
      * Converts a color as an [R, G, B] array to a hex number
      *
-     * @param rgb {number[]}
+     * @memberof PIXI.utils
+     * @param rgb {number[]} rgb array
      * @return {number} The color number
      */
     rgb2hex: function (rgb)
@@ -23463,8 +23783,9 @@ var utils = module.exports = {
      * get the resolution / device pixel ratio of an asset by looking for the prefix
      * used by spritesheets and image urls
      *
+     * @memberof PIXI.utils
      * @param url {string} the image path
-     * @return {number}
+     * @return {number} resolution / device pixel ratio of an asset
      */
     getResolutionOfUrl: function (url)
     {
@@ -23484,6 +23805,7 @@ var utils = module.exports = {
      * so the library thinks it already said it. Keep in mind that doing that will forever
      * makes you a jerk face.
      *
+     * @memberof PIXI.utils
      * @param {string} type - The string renderer type to log.
      * @constant
      * @static
@@ -23523,7 +23845,8 @@ var utils = module.exports = {
     /**
      * Helper for checking for webgl support
      *
-     * @return {boolean}
+     * @memberof PIXI.utils
+     * @return {boolean} is webgl supported
      */
     isWebGLSupported: function ()
     {
@@ -23561,6 +23884,7 @@ var utils = module.exports = {
     /**
      * Returns sign of number
      *
+     * @memberof PIXI.utils
      * @param n {number}
      * @returns {number} 0 if n is 0, -1 if n is negative, 1 if n i positive
      */
@@ -23570,8 +23894,9 @@ var utils = module.exports = {
     },
 
     /**
-     * removeItems
+     * Remove a range of items from an array
      *
+     * @memberof PIXI.utils
      * @param {Array<*>} arr The target array
      * @param {number} startIdx The index to begin removing from (inclusive)
      * @param {number} removeCount How many items to remove
@@ -23596,18 +23921,22 @@ var utils = module.exports = {
 
     /**
      * @todo Describe property usage
+     *
+     * @memberof PIXI.utils
      * @private
      */
     TextureCache: {},
 
     /**
      * @todo Describe property usage
+     *
+     * @memberof PIXI.utils
      * @private
      */
     BaseTextureCache: {}
 };
 
-},{"../const":41,"./pluginTarget":114,"eventemitter3":11}],113:[function(require,module,exports){
+},{"../const":42,"./pluginTarget":116,"eventemitter3":4}],115:[function(require,module,exports){
 
 
 var  Device = require('ismobilejs');
@@ -23628,7 +23957,7 @@ var maxRecommendedTextures = function(max)
 };
 
 module.exports = maxRecommendedTextures;
-},{"ismobilejs":12}],114:[function(require,module,exports){
+},{"ismobilejs":5}],116:[function(require,module,exports){
 /**
  * Mixins functionality to make an object have "plugins".
  *
@@ -23698,7 +24027,7 @@ module.exports = {
     }
 };
 
-},{}],115:[function(require,module,exports){
+},{}],117:[function(require,module,exports){
 /*global console */
 var core = require('./core'),
     mesh = require('./mesh'),
@@ -24083,6 +24412,12 @@ core.Text.prototype.setStyle = function(style)
 };
 
 Object.defineProperties(core.TextStyle.prototype, {
+    /**
+     * Set all properties of a font as a single string
+     *
+     * @name PIXI.TextStyle#font
+     * @deprecated since version 4.0.0
+     */
     font: {
         get: function ()
         {
@@ -24223,13 +24558,19 @@ core.utils.uuid = function ()
     return core.utils.uid();
 };
 
+/**
+ * @method
+ * @name PIXI.utils.canUseNewCanvasBlendModes
+ * @see PIXI.CanvasTinter
+ * @deprecated
+ */
 core.utils.canUseNewCanvasBlendModes = function() {
     warn('utils.canUseNewCanvasBlendModes() is deprecated, please use CanvasTinter.canUseMultiply from now on');
     return core.CanvasTinter.canUseMultiply;
 };
 
 
-},{"./core":58,"./core/const":41,"./extras":125,"./filters":136,"./mesh":152,"./particles":155}],116:[function(require,module,exports){
+},{"./core":60,"./core/const":42,"./extras":127,"./filters":138,"./mesh":154,"./particles":157}],118:[function(require,module,exports){
 var core = require('../../core'),
     tempRect = new core.Rectangle();
 
@@ -24252,8 +24593,8 @@ module.exports = CanvasExtract;
 /**
  * Will return a HTML Image of the target
  *
- * @return {Image}
  * @param target {PIXI.DisplayObject|PIXI.RenderTexture} A displayObject or renderTexture to convert. If left empty will use use the main renderer
+ * @return {Image} HTML Image of the target
  */
 CanvasExtract.prototype.image = function ( target )
 {
@@ -24328,7 +24669,7 @@ CanvasExtract.prototype.canvas = function ( target )
 /**
  * Will return a one-dimensional array containing the pixel data of the entire texture in RGBA order, with integer values between 0 and 255 (included).
  * @param target {PIXI.DisplayObject|PIXI.RenderTexture} A displayObject or renderTexture to convert. If left empty will use use the main renderer
- * @return {Uint8ClampedArray}
+ * @return {Uint8ClampedArray} One-dimensional array containing the pixel data of the entire texture
  */
 CanvasExtract.prototype.pixels = function ( target )
 {
@@ -24381,13 +24722,13 @@ CanvasExtract.prototype.destroy = function ()
 
 core.CanvasRenderer.registerPlugin('extract', CanvasExtract);
 
-},{"../../core":58}],117:[function(require,module,exports){
+},{"../../core":60}],119:[function(require,module,exports){
 
 module.exports = {
     webGL: require('./webgl/WebGLExtract'),
     canvas: require('./canvas/CanvasExtract')
 };
-},{"./canvas/CanvasExtract":116,"./webgl/WebGLExtract":118}],118:[function(require,module,exports){
+},{"./canvas/CanvasExtract":118,"./webgl/WebGLExtract":120}],120:[function(require,module,exports){
 var core = require('../../core'),
     tempRect = new core.Rectangle();
 
@@ -24395,25 +24736,25 @@ var core = require('../../core'),
  * The extract manager provides functionality to export content from the renderers
  * @class
  * @memberof PIXI
- * @param renderer {PIXI.CanvasRenderer} A reference to the current renderer
+ * @param renderer {PIXI.WebGLRenderer} A reference to the current renderer
  */
-function Extract(renderer)
+function WebGLExtract(renderer)
 {
     this.renderer = renderer;
     renderer.extract = this;
 }
 
 
-Extract.prototype.constructor = Extract;
-module.exports = Extract;
+WebGLExtract.prototype.constructor = WebGLExtract;
+module.exports = WebGLExtract;
 
 /**
  * Will return a HTML Image of the target
  *
- * @return {Image}
  * @param target {PIXI.DisplayObject|PIXI.RenderTexture} A displayObject or renderTexture to convert. If left empty will use use the main renderer
+ * @return {Image} HTML Image of the target
  */
-Extract.prototype.image = function ( target )
+WebGLExtract.prototype.image = function ( target )
 {
 	var image = new Image();
     image.src = this.base64( target );
@@ -24425,7 +24766,7 @@ Extract.prototype.image = function ( target )
  * @param target {PIXI.DisplayObject|PIXI.RenderTexture} A displayObject or renderTexture to convert. If left empty will use use the main renderer
  * @return {string} A base64 encoded string of the texture.
  */
-Extract.prototype.base64 = function ( target )
+WebGLExtract.prototype.base64 = function ( target )
 {
     return this.canvas( target ).toDataURL();
 };
@@ -24435,7 +24776,7 @@ Extract.prototype.base64 = function ( target )
  * @param target {PIXI.DisplayObject|PIXI.RenderTexture} A displayObject or renderTexture to convert. If left empty will use use the main renderer
  * @return {HTMLCanvasElement} A Canvas element with the texture rendered on.
  */
-Extract.prototype.canvas = function ( target )
+WebGLExtract.prototype.canvas = function ( target )
 {
 	var renderer = this.renderer;
 	var textureBuffer;
@@ -24516,9 +24857,9 @@ Extract.prototype.canvas = function ( target )
 /**
  * Will return a one-dimensional array containing the pixel data of the entire texture in RGBA order, with integer values between 0 and 255 (included).
  * @param target {PIXI.DisplayObject|PIXI.RenderTexture} A displayObject or renderTexture to convert. If left empty will use use the main renderer
- * @return {Uint8ClampedArray}
+ * @return {Uint8ClampedArray} One-dimensional array containing the pixel data of the entire texture
  */
-Extract.prototype.pixels = function ( target )
+WebGLExtract.prototype.pixels = function ( target )
 {
     var renderer = this.renderer;
     var textureBuffer;
@@ -24576,15 +24917,15 @@ Extract.prototype.pixels = function ( target )
  * Destroys the extract
  *
  */
-Extract.prototype.destroy = function ()
+WebGLExtract.prototype.destroy = function ()
 {
     this.renderer.extract = null;
     this.renderer = null;
 };
 
-core.WebGLRenderer.registerPlugin('extract', Extract);
+core.WebGLRenderer.registerPlugin('extract', WebGLExtract);
 
-},{"../../core":58}],119:[function(require,module,exports){
+},{"../../core":60}],121:[function(require,module,exports){
 var core = require('../core'),
     ObservablePoint = require('../core/math/ObservablePoint');
 
@@ -24598,7 +24939,6 @@ var core = require('../core'),
  * // in this case the font is in a file called 'desyrel.fnt'
  * var bitmapText = new PIXI.extras.BitmapText("text using a fancy font!", {font: "35px Desyrel", align: "right"});
  * ```
- *
  *
  * http://www.angelcode.com/products/bmfont/ for windows or
  * http://www.bmglyph.com/ for mac.
@@ -24627,7 +24967,7 @@ function BitmapText(text, style)
      * which is defined in the style object
      *
      * @member {number}
-     * @readOnly
+     * @readonly
      */
     this.textWidth = 0;
 
@@ -24636,7 +24976,7 @@ function BitmapText(text, style)
      * which is defined in the style object
      *
      * @member {number}
-     * @readOnly
+     * @readonly
      */
     this.textHeight = 0;
 
@@ -24695,7 +25035,7 @@ function BitmapText(text, style)
     /**
      * Text anchor. read-only
      *
-     * @member {PIXI.Point}
+     * @member {PIXI.ObservablePoint}
      * @private
      */
     this._anchor = new ObservablePoint(this.makeDirty, this, 0, 0);
@@ -24762,6 +25102,7 @@ Object.defineProperties(BitmapText.prototype, {
      * Setting the anchor to 1,1 would mean the text's origin point will be the bottom right corner
      *
      * @member {PIXI.Point | number}
+     * @memberof PIXI.extras.BitmapText#
      */
     anchor: {
         get : function() {
@@ -25017,8 +25358,16 @@ BitmapText.prototype.makeDirty = function() {
 
 BitmapText.fonts = {};
 
-},{"../core":58,"../core/math/ObservablePoint":61}],120:[function(require,module,exports){
+},{"../core":60,"../core/math/ObservablePoint":63}],122:[function(require,module,exports){
 var core = require('../core');
+
+/**
+ * @typedef PIXI.extras.MovieClip.FrameObject
+ * @type {object}
+ * @property texture {PIXI.Texture} The {@link PIXI.Texture} of the frame
+ * @property time {number} the duration of the frame in ms
+ */
+
 /**
  * A MovieClip is a simple way to display an animation depicted by a list of textures.
  *
@@ -25035,15 +25384,11 @@ var core = require('../core');
  * var mc = new PIXI.MovieClip(textureArray);
  * ```
  *
- * @typedef FrameObject
- * @type {object}
- * @property texture {PIXI.Texture} The {@link PIXI.Texture} of the frame
- * @property time {number} the duration of the frame in ms
  *
  * @class
  * @extends PIXI.Sprite
  * @memberof PIXI.extras
- * @param textures {PIXI.Texture[]|FrameObject[]} an array of {@link PIXI.Texture} or frame objects that make up the animation
+ * @param textures {PIXI.Texture[]|PIXI.extras.MovieClip.FrameObject[]} an array of {@link PIXI.Texture} or frame objects that make up the animation
  */
 function MovieClip(textures)
 {
@@ -25219,6 +25564,7 @@ MovieClip.prototype.gotoAndStop = function (frameNumber)
     this._currentTime = frameNumber;
 
     this._texture = this._textures[this.currentFrame];
+    this._textureID = -1;
 };
 
 /**
@@ -25290,6 +25636,7 @@ MovieClip.prototype.update = function (deltaTime)
     else
     {
         this._texture = this._textures[this.currentFrame];
+        this._textureID = -1;
     }
 
 };
@@ -25316,7 +25663,7 @@ MovieClip.fromFrames = function (frames)
 
     for (var i = 0; i < frames.length; ++i)
     {
-        textures.push(new core.Texture.fromFrame(frames[i]));
+        textures.push(core.Texture.fromFrame(frames[i]));
     }
 
     return new MovieClip(textures);
@@ -25334,13 +25681,13 @@ MovieClip.fromImages = function (images)
 
     for (var i = 0; i < images.length; ++i)
     {
-        textures.push(new core.Texture.fromImage(images[i]));
+        textures.push(core.Texture.fromImage(images[i]));
     }
 
     return new MovieClip(textures);
 };
 
-},{"../core":58}],121:[function(require,module,exports){
+},{"../core":60}],123:[function(require,module,exports){
 var core = require('../core'),
     tempPoint = new core.Point(),
     CanvasTinter = require('../core/sprites/canvas/CanvasTinter'),
@@ -25456,7 +25803,7 @@ TilingSprite.prototype._onTextureUpdate = function ()
 /**
  * Renders the object using the WebGL renderer
  *
- * @param renderer {PIXI.WebGLRenderer}
+ * @param renderer {PIXI.WebGLRenderer} The renderer
  * @private
  */
 TilingSprite.prototype._renderWebGL = function (renderer)
@@ -25749,6 +26096,7 @@ TilingSprite.prototype.destroy = function () {
  * @return {PIXI.extras.TilingSprite} A new TilingSprite using a texture from the texture cache matching the frameId
  * @param width {number}  the width of the tiling sprite
  * @param height {number} the height of the tiling sprite
+ * @return {PIXI.extras.TilingSprite} A new TilingSprite
  */
 TilingSprite.fromFrame = function (frameId,width,height)
 {
@@ -25779,7 +26127,7 @@ TilingSprite.fromImage = function (imageId, width, height, crossorigin, scaleMod
     return new TilingSprite(core.Texture.fromImage(imageId, crossorigin, scaleMode),width,height);
 };
 
-},{"../core":58,"../core/sprites/canvas/CanvasTinter":96,"./webgl/TilingShader":126}],122:[function(require,module,exports){
+},{"../core":60,"../core/sprites/canvas/CanvasTinter":98,"./webgl/TilingShader":128}],124:[function(require,module,exports){
 var core = require('../core'),
     DisplayObject = core.DisplayObject,
     _tempMatrix = new core.Matrix();
@@ -26055,7 +26403,7 @@ DisplayObject.prototype._cacheAsBitmapDestroy = function ()
     this._originalDestroy();
 };
 
-},{"../core":58}],123:[function(require,module,exports){
+},{"../core":60}],125:[function(require,module,exports){
 var core = require('../core');
 
 /**
@@ -26085,7 +26433,7 @@ core.Container.prototype.getChildByName = function (name)
     return null;
 };
 
-},{"../core":58}],124:[function(require,module,exports){
+},{"../core":60}],126:[function(require,module,exports){
 var core = require('../core');
 
 /**
@@ -26115,7 +26463,7 @@ core.DisplayObject.prototype.getGlobalPosition = function (point)
     return point;
 };
 
-},{"../core":58}],125:[function(require,module,exports){
+},{"../core":60}],127:[function(require,module,exports){
 /**
  * @file        Main export of the PIXI extras library
  * @author      Mat Groves <mat@goodboydigital.com>
@@ -26136,7 +26484,7 @@ module.exports = {
     BitmapText:     require('./BitmapText')
 };
 
-},{"./BitmapText":119,"./MovieClip":120,"./TilingSprite":121,"./cacheAsBitmap":122,"./getChildByName":123,"./getGlobalPosition":124}],126:[function(require,module,exports){
+},{"./BitmapText":121,"./MovieClip":122,"./TilingSprite":123,"./cacheAsBitmap":124,"./getChildByName":125,"./getGlobalPosition":126}],128:[function(require,module,exports){
 var Shader = require('../../core/Shader');
 
 
@@ -26160,7 +26508,7 @@ TilingShader.prototype.constructor = TilingShader;
 module.exports = TilingShader;
 
 
-},{"../../core/Shader":40}],127:[function(require,module,exports){
+},{"../../core/Shader":41}],129:[function(require,module,exports){
 var core = require('../../core'),
     BlurXFilter = require('./BlurXFilter'),
     BlurYFilter = require('./BlurYFilter');
@@ -26280,7 +26628,7 @@ Object.defineProperties(BlurFilter.prototype, {
     }
 });
 
-},{"../../core":58,"./BlurXFilter":128,"./BlurYFilter":129}],128:[function(require,module,exports){
+},{"../../core":60,"./BlurXFilter":130,"./BlurYFilter":131}],130:[function(require,module,exports){
 var core = require('../../core');
 var generateBlurVertSource  = require('./generateBlurVertSource');
 var generateBlurFragSource  = require('./generateBlurFragSource');
@@ -26405,7 +26753,7 @@ Object.defineProperties(BlurXFilter.prototype, {
     }
 });
 
-},{"../../core":58,"./generateBlurFragSource":130,"./generateBlurVertSource":131,"./getMaxBlurKernelSize":132}],129:[function(require,module,exports){
+},{"../../core":60,"./generateBlurFragSource":132,"./generateBlurVertSource":133,"./getMaxBlurKernelSize":134}],131:[function(require,module,exports){
 var core = require('../../core');
 var generateBlurVertSource  = require('./generateBlurVertSource');
 var generateBlurFragSource  = require('./generateBlurFragSource');
@@ -26528,7 +26876,7 @@ Object.defineProperties(BlurYFilter.prototype, {
     }
 });
 
-},{"../../core":58,"./generateBlurFragSource":130,"./generateBlurVertSource":131,"./getMaxBlurKernelSize":132}],130:[function(require,module,exports){
+},{"../../core":60,"./generateBlurFragSource":132,"./generateBlurVertSource":133,"./getMaxBlurKernelSize":134}],132:[function(require,module,exports){
 var GAUSSIAN_VALUES = {
 	5:[0.153388, 0.221461, 0.250301],
 	7:[0.071303, 0.131514, 0.189879, 0.214607],
@@ -26590,7 +26938,7 @@ var generateFragBlurSource = function(kernelSize)
 
 module.exports = generateFragBlurSource;
 
-},{}],131:[function(require,module,exports){
+},{}],133:[function(require,module,exports){
 
 var vertTemplate = [
 	'attribute vec2 aVertexPosition;',
@@ -26656,7 +27004,7 @@ var generateVertBlurSource = function(kernelSize, x)
 
 module.exports = generateVertBlurSource;
 
-},{}],132:[function(require,module,exports){
+},{}],134:[function(require,module,exports){
 
 
 var getMaxKernelSize = function(gl)
@@ -26674,7 +27022,7 @@ var getMaxKernelSize = function(gl)
 
 module.exports = getMaxKernelSize;
 
-},{}],133:[function(require,module,exports){
+},{}],135:[function(require,module,exports){
 var core = require('../../core');
 // @see https://github.com/substack/brfs/issues/25
 
@@ -27231,7 +27579,7 @@ Object.defineProperties(ColorMatrixFilter.prototype, {
     }
 });
 
-},{"../../core":58}],134:[function(require,module,exports){
+},{"../../core":60}],136:[function(require,module,exports){
 var core = require('../../core');
 
 
@@ -27312,7 +27660,7 @@ Object.defineProperties(DisplacementFilter.prototype, {
     }
 });
 
-},{"../../core":58}],135:[function(require,module,exports){
+},{"../../core":60}],137:[function(require,module,exports){
 var core = require('../../core');
 
 
@@ -27322,9 +27670,7 @@ var core = require('../../core');
  * modification that the texture2DLod stuff was removed since it's
  * unsupported by WebGL.
  *
- * --
- * From:
- * https://github.com/mitsuhiko/webgl-meincraft
+ * @see https://github.com/mitsuhiko/webgl-meincraft
  *
  * @class
  * @extends PIXI.Filter
@@ -27349,7 +27695,7 @@ FXAAFilter.prototype.constructor = FXAAFilter;
 
 module.exports = FXAAFilter;
 
-},{"../../core":58}],136:[function(require,module,exports){
+},{"../../core":60}],138:[function(require,module,exports){
 /**
  * @file        Main export of the PIXI filters library
  * @author      Mat Groves <mat@goodboydigital.com>
@@ -27371,7 +27717,7 @@ module.exports = {
     VoidFilter:         require('./void/VoidFilter')
 };
 
-},{"./blur/BlurFilter":127,"./blur/BlurXFilter":128,"./blur/BlurYFilter":129,"./colormatrix/ColorMatrixFilter":133,"./displacement/DisplacementFilter":134,"./fxaa/FXAAFilter":135,"./noise/NoiseFilter":137,"./void/VoidFilter":138}],137:[function(require,module,exports){
+},{"./blur/BlurFilter":129,"./blur/BlurXFilter":130,"./blur/BlurYFilter":131,"./colormatrix/ColorMatrixFilter":135,"./displacement/DisplacementFilter":136,"./fxaa/FXAAFilter":137,"./noise/NoiseFilter":139,"./void/VoidFilter":140}],139:[function(require,module,exports){
 var core = require('../../core');
 
 
@@ -27423,7 +27769,7 @@ Object.defineProperties(NoiseFilter.prototype, {
     }
 });
 
-},{"../../core":58}],138:[function(require,module,exports){
+},{"../../core":60}],140:[function(require,module,exports){
 var core = require('../../core');
 // @see https://github.com/substack/brfs/issues/25
 
@@ -27451,7 +27797,7 @@ VoidFilter.prototype = Object.create(core.Filter.prototype);
 VoidFilter.prototype.constructor = VoidFilter;
 module.exports = VoidFilter;
 
-},{"../../core":58}],139:[function(require,module,exports){
+},{"../../core":60}],141:[function(require,module,exports){
 (function (global){
 // run the polyfills
 require('./polyfill');
@@ -27486,7 +27832,7 @@ Object.assign(core, require('./deprecation'));
 global.PIXI = core;
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./accessibility":39,"./core":58,"./deprecation":115,"./extract":117,"./extras":125,"./filters":136,"./interaction":142,"./loaders":145,"./mesh":152,"./particles":155,"./polyfill":161,"./prepare":164}],140:[function(require,module,exports){
+},{"./accessibility":40,"./core":60,"./deprecation":117,"./extract":119,"./extras":127,"./filters":138,"./interaction":144,"./loaders":147,"./mesh":154,"./particles":157,"./polyfill":163,"./prepare":166}],142:[function(require,module,exports){
 var core = require('../core');
 
 /**
@@ -27535,7 +27881,7 @@ InteractionData.prototype.getLocalPosition = function (displayObject, point, glo
     return displayObject.worldTransform.applyInverse(globalPos || this.global, point);
 };
 
-},{"../core":58}],141:[function(require,module,exports){
+},{"../core":60}],143:[function(require,module,exports){
 var core = require('../core'),
     InteractionData = require('./InteractionData');
 
@@ -27643,6 +27989,7 @@ function InteractionManager(renderer, options)
 
     /**
      * @member {Function}
+     * @private
      */
     this.onMouseUp = this.onMouseUp.bind(this);
     this.processMouseUp = this.processMouseUp.bind( this );
@@ -27650,18 +27997,21 @@ function InteractionManager(renderer, options)
 
     /**
      * @member {Function}
+     *  @private
      */
     this.onMouseDown = this.onMouseDown.bind(this);
     this.processMouseDown = this.processMouseDown.bind( this );
 
     /**
      * @member {Function}
+     * @private
      */
     this.onMouseMove = this.onMouseMove.bind( this );
     this.processMouseMove = this.processMouseMove.bind( this );
 
     /**
      * @member {Function}
+     * @private
      */
     this.onMouseOut = this.onMouseOut.bind(this);
     this.processMouseOverOut = this.processMouseOverOut.bind( this );
@@ -27669,26 +28019,24 @@ function InteractionManager(renderer, options)
 
     /**
      * @member {Function}
+     * @private
      */
     this.onTouchStart = this.onTouchStart.bind(this);
     this.processTouchStart = this.processTouchStart.bind(this);
 
     /**
      * @member {Function}
+     * @private
      */
     this.onTouchEnd = this.onTouchEnd.bind(this);
     this.processTouchEnd = this.processTouchEnd.bind(this);
 
     /**
      * @member {Function}
+     * @private
      */
     this.onTouchMove = this.onTouchMove.bind(this);
     this.processTouchMove = this.processTouchMove.bind(this);
-
-    /**
-     * @member {number}
-     */
-    this.last = 0;
 
     /**
      * Every update cursor will be reset to this value, if some element wont override it in its hitTest
@@ -27817,7 +28165,7 @@ InteractionManager.prototype.removeEvents = function ()
  * Invoked by a throttled ticker update from
  * {@link PIXI.ticker.shared}.
  *
- * @param deltaTime {number}
+ * @param deltaTime {number} time delta since last tick
  */
 InteractionManager.prototype.update = function (deltaTime)
 {
@@ -28288,6 +28636,7 @@ InteractionManager.prototype.processTouchStart = function ( displayObject, hit )
  * Is called when a touch ends on the renderer element
  *
  * @param event {Event} The DOM event of a touch ending on the renderer view
+ * @private
  */
 InteractionManager.prototype.onTouchEnd = function (event)
 {
@@ -28484,7 +28833,7 @@ InteractionManager.prototype.destroy = function () {
 core.WebGLRenderer.registerPlugin('interaction', InteractionManager);
 core.CanvasRenderer.registerPlugin('interaction', InteractionManager);
 
-},{"../core":58,"./InteractionData":140,"./interactiveTarget":143}],142:[function(require,module,exports){
+},{"../core":60,"./InteractionData":142,"./interactiveTarget":145}],144:[function(require,module,exports){
 /**
  * @file        Main export of the PIXI interactions library
  * @author      Mat Groves <mat@goodboydigital.com>
@@ -28501,7 +28850,7 @@ module.exports = {
     interactiveTarget:  require('./interactiveTarget')
 };
 
-},{"./InteractionData":140,"./InteractionManager":141,"./interactiveTarget":143}],143:[function(require,module,exports){
+},{"./InteractionData":142,"./InteractionManager":143,"./interactiveTarget":145}],145:[function(require,module,exports){
 /**
  * Default property values of interactive objects
  * Used by {@link PIXI.interaction.InteractionManager} to automatically give all DisplayObjects these properties
@@ -28590,7 +28939,7 @@ var interactiveTarget = {
 
 module.exports = interactiveTarget;
 
-},{}],144:[function(require,module,exports){
+},{}],146:[function(require,module,exports){
 var Resource = require('resource-loader').Resource,
     core = require('../core'),
     extras = require('../extras'),
@@ -28716,7 +29065,7 @@ module.exports = function ()
     };
 };
 
-},{"../core":58,"../extras":125,"path":3,"resource-loader":34}],145:[function(require,module,exports){
+},{"../core":60,"../extras":127,"path":7,"resource-loader":33}],147:[function(require,module,exports){
 /**
  * @file        Main export of the PIXI loaders library
  * @author      Mat Groves <mat@goodboydigital.com>
@@ -28737,7 +29086,7 @@ module.exports = {
     Resource:           require('resource-loader').Resource
 };
 
-},{"./bitmapFontParser":144,"./loader":146,"./spritesheetParser":147,"./textureParser":148,"resource-loader":34}],146:[function(require,module,exports){
+},{"./bitmapFontParser":146,"./loader":148,"./spritesheetParser":149,"./textureParser":150,"resource-loader":33}],148:[function(require,module,exports){
 var ResourceLoader = require('resource-loader'),
     textureParser = require('./textureParser'),
     spritesheetParser = require('./spritesheetParser'),
@@ -28764,6 +29113,7 @@ var ResourceLoader = require('resource-loader'),
  * @memberof PIXI.loaders
  * @param [baseUrl=''] {string} The base url for all resources loaded by this loader.
  * @param [concurrency=10] {number} The number of resources to load concurrently.
+ * @see https://github.com/englercj/resource-loader
  */
 function Loader(baseUrl, concurrency)
 {
@@ -28799,7 +29149,7 @@ var Resource = ResourceLoader.Resource;
 
 Resource.setExtensionXhrType('fnt', Resource.XHR_RESPONSE_TYPE.DOCUMENT);
 
-},{"./bitmapFontParser":144,"./spritesheetParser":147,"./textureParser":148,"resource-loader":34}],147:[function(require,module,exports){
+},{"./bitmapFontParser":146,"./spritesheetParser":149,"./textureParser":150,"resource-loader":33}],149:[function(require,module,exports){
 var Resource = require('resource-loader').Resource,
     path = require('path'),
     core = require('../core'),
@@ -28916,7 +29266,7 @@ module.exports = function ()
     };
 };
 
-},{"../core":58,"async":1,"path":3,"resource-loader":34}],148:[function(require,module,exports){
+},{"../core":60,"async":1,"path":7,"resource-loader":33}],150:[function(require,module,exports){
 var core = require('../core');
 
 module.exports = function ()
@@ -28938,7 +29288,7 @@ module.exports = function ()
     };
 };
 
-},{"../core":58}],149:[function(require,module,exports){
+},{"../core":60}],151:[function(require,module,exports){
 var core = require('../core'),
     glCore = require('pixi-gl-core'),
     Shader = require('./webgl/MeshShader'),
@@ -29036,6 +29386,15 @@ function Mesh(texture, vertices, uvs, indices, drawMode)
      */
     this.shader = null;
 
+
+    /**
+     * The tint applied to the mesh. This is a [r,g,b] value. A value of [1,1,1] will remove any tint effect.
+     *
+     * @member {number}
+     * @memberof PIXI.mesh.Mesh#
+     */
+    this.tintRgb = new Float32Array([1, 1, 1]);
+
     this._glDatas = [];
 }
 
@@ -29077,6 +29436,21 @@ Object.defineProperties(Mesh.prototype, {
                     value.once('update', this._onTextureUpdate, this);
                 }
             }
+        }
+    },
+    /**
+     * The tint applied to the mesh. This is a hex value. A value of 0xFFFFFF will remove any tint effect.
+     *
+     * @member {number}
+     * @memberof PIXI.mesh.Mesh#
+     * @default 0xFFFFFF
+     */
+    tint: {
+        get: function() {
+            return core.utils.rgb2hex(this.tintRgb);
+        },
+        set: function(value) {
+            this.tintRgb = core.utils.hex2rgb(value, this.tintRgb);
         }
     }
 });
@@ -29139,9 +29513,9 @@ Mesh.prototype._renderWebGL = function (renderer)
 
     glData.shader.uniforms.translationMatrix = this.worldTransform.toArray(true);
     glData.shader.uniforms.alpha = this.worldAlpha;
+    glData.shader.uniforms.tint = this.tintRgb;
 
     var drawMode = this.drawMode === Mesh.DRAW_MODES.TRIANGLE_MESH ? gl.TRIANGLE_STRIP : gl.TRIANGLES;
-
 
     glData.vao.bind()
     .draw(drawMode, this.indices.length)
@@ -29475,7 +29849,7 @@ Mesh.DRAW_MODES = {
     TRIANGLES: 1
 };
 
-},{"../core":58,"./webgl/MeshShader":153,"pixi-gl-core":20}],150:[function(require,module,exports){
+},{"../core":60,"./webgl/MeshShader":155,"pixi-gl-core":14}],152:[function(require,module,exports){
 var Mesh = require('./Mesh');
 
 /**
@@ -29600,7 +29974,7 @@ Plane.prototype._onTextureUpdate = function ()
     }
 };
 
-},{"./Mesh":149}],151:[function(require,module,exports){
+},{"./Mesh":151}],153:[function(require,module,exports){
 var Mesh = require('./Mesh');
 var core = require('../core');
 
@@ -29815,7 +30189,7 @@ Rope.prototype.updateTransform = function ()
     this.containerUpdateTransform();
 };
 
-},{"../core":58,"./Mesh":149}],152:[function(require,module,exports){
+},{"../core":60,"./Mesh":151}],154:[function(require,module,exports){
 /**
  * @file        Main export of the PIXI extras library
  * @author      Mat Groves <mat@goodboydigital.com>
@@ -29833,14 +30207,14 @@ module.exports = {
     MeshShader:     require('./webgl/MeshShader')
 };
 
-},{"./Mesh":149,"./Plane":150,"./Rope":151,"./webgl/MeshShader":153}],153:[function(require,module,exports){
+},{"./Mesh":151,"./Plane":152,"./Rope":153,"./webgl/MeshShader":155}],155:[function(require,module,exports){
 var Shader = require('../../core/Shader');
 
 /**
  * @class
  * @extends PIXI.Shader
  * @memberof PIXI.mesh
- * @param gl {Shader} TODO: Find a good explanation for this.
+ * @param gl {PIXI.Shader} TODO: Find a good explanation for this.
  */
 function MeshShader(gl)
 {
@@ -29864,11 +30238,12 @@ function MeshShader(gl)
         [
             'varying vec2 vTextureCoord;',
             'uniform float alpha;',
+            'uniform vec3 tint;',
 
             'uniform sampler2D uSampler;',
 
             'void main(void){',
-            '   gl_FragColor = texture2D(uSampler, vTextureCoord) * alpha ;',
+            '   gl_FragColor = texture2D(uSampler, vTextureCoord) * vec4(tint * alpha, alpha);',
            // '   gl_FragColor = vec4(1.0);',
             '}'
         ].join('\n')
@@ -29880,7 +30255,7 @@ MeshShader.prototype.constructor = MeshShader;
 module.exports = MeshShader;
 
 
-},{"../../core/Shader":40}],154:[function(require,module,exports){
+},{"../../core/Shader":41}],156:[function(require,module,exports){
 var core = require('../core');
 
 /**
@@ -30212,7 +30587,7 @@ ParticleContainer.prototype.destroy = function () {
     this._buffers = null;
 };
 
-},{"../core":58}],155:[function(require,module,exports){
+},{"../core":60}],157:[function(require,module,exports){
 /**
  * @file        Main export of the PIXI extras library
  * @author      Mat Groves <mat@goodboydigital.com>
@@ -30221,14 +30596,14 @@ ParticleContainer.prototype.destroy = function () {
  */
 
 /**
- * @namespace PIXI.mesh
+ * @namespace PIXI.particles
  */
 module.exports = {
 	ParticleContainer:           require('./ParticleContainer'),
     ParticleRenderer: 			 require('./webgl/ParticleRenderer')
 };
 
-},{"./ParticleContainer":154,"./webgl/ParticleRenderer":157}],156:[function(require,module,exports){
+},{"./ParticleContainer":156,"./webgl/ParticleRenderer":159}],158:[function(require,module,exports){
 var glCore = require('pixi-gl-core'),
     createIndicesForQuads = require('../../core/utils/createIndicesForQuads');
 
@@ -30449,7 +30824,7 @@ ParticleBuffer.prototype.destroy = function ()
     this.staticBuffer.destroy();
 };
 
-},{"../../core/utils/createIndicesForQuads":110,"pixi-gl-core":20}],157:[function(require,module,exports){
+},{"../../core/utils/createIndicesForQuads":112,"pixi-gl-core":14}],159:[function(require,module,exports){
 var core = require('../../core'),
     ParticleShader = require('./ParticleShader'),
     ParticleBuffer = require('./ParticleBuffer');
@@ -30881,7 +31256,7 @@ ParticleRenderer.prototype.destroy = function ()
     this.tempMatrix = null;
 };
 
-},{"../../core":58,"./ParticleBuffer":156,"./ParticleShader":158}],158:[function(require,module,exports){
+},{"../../core":60,"./ParticleBuffer":158,"./ParticleShader":160}],160:[function(require,module,exports){
 var Shader = require('../../core/Shader');
 
 /**
@@ -30947,7 +31322,7 @@ ParticleShader.prototype.constructor = ParticleShader;
 
 module.exports = ParticleShader;
 
-},{"../../core/Shader":40}],159:[function(require,module,exports){
+},{"../../core/Shader":41}],161:[function(require,module,exports){
 // References:
 // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/sign
 
@@ -30963,7 +31338,7 @@ if (!Math.sign)
     };
 }
 
-},{}],160:[function(require,module,exports){
+},{}],162:[function(require,module,exports){
 // References:
 // https://github.com/sindresorhus/object-assign
 // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
@@ -30973,7 +31348,7 @@ if (!Object.assign)
     Object.assign = require('object-assign');
 }
 
-},{"object-assign":13}],161:[function(require,module,exports){
+},{"object-assign":6}],163:[function(require,module,exports){
 require('./Object.assign');
 require('./requestAnimationFrame');
 require('./Math.sign');
@@ -30991,7 +31366,7 @@ if(!window.Uint16Array){
   window.Uint16Array = Array;
 }
 
-},{"./Math.sign":159,"./Object.assign":160,"./requestAnimationFrame":162}],162:[function(require,module,exports){
+},{"./Math.sign":161,"./Object.assign":162,"./requestAnimationFrame":164}],164:[function(require,module,exports){
 (function (global){
 // References:
 // http://paulirish.com/2011/requestanimationframe-for-smart-animating/
@@ -31061,7 +31436,7 @@ if (!global.cancelAnimationFrame) {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],163:[function(require,module,exports){
+},{}],165:[function(require,module,exports){
 var core = require('../../core');
 
 /**
@@ -31071,18 +31446,21 @@ var core = require('../../core');
  * @memberof PIXI
  * @param renderer {PIXI.CanvasRenderer} A reference to the current renderer
  */
-function Prepare()
+function CanvasPrepare()
 {
 }
 
-Prepare.prototype.constructor = Prepare;
-module.exports = Prepare;
+CanvasPrepare.prototype.constructor = CanvasPrepare;
+module.exports = CanvasPrepare;
 
 /**
  * Stub method for upload.
- * @method upload
+ * @param {Function|PIXI.DisplayObject|PIXI.Container} item Either
+ *        the container or display object to search for items to upload or
+ *        the callback function, if items have been added using `prepare.add`.
+ * @param {Function} done When completed
  */
-Prepare.prototype.upload = function(displayObject, done)
+CanvasPrepare.prototype.upload = function(displayObject, done)
 {
     if (typeof displayObject === 'function')
     {
@@ -31094,39 +31472,37 @@ Prepare.prototype.upload = function(displayObject, done)
 
 /**
  * Stub method for registering hooks.
- * @method upload
+ * @return {PIXI.CanvasPrepare} Instance of plugin for chaining.
  */
-Prepare.prototype.register = function()
+CanvasPrepare.prototype.register = function()
 {
     return this;
 };
 
 /**
  * Stub method for adding items.
- * @method upload
+ * @return {PIXI.CanvasPrepare} Instance of plugin for chaining.
  */
-Prepare.prototype.add = function()
+CanvasPrepare.prototype.add = function()
 {
     return this;
 };
 
 /**
  * Stub method for destroying plugin.
- * @method destroy
  */
-Prepare.prototype.destroy = function()
+CanvasPrepare.prototype.destroy = function()
 {
-
 };
 
-core.CanvasRenderer.registerPlugin('prepare', Prepare);
-},{"../../core":58}],164:[function(require,module,exports){
+core.CanvasRenderer.registerPlugin('prepare', CanvasPrepare);
+},{"../../core":60}],166:[function(require,module,exports){
 
 module.exports = {
     webGL: require('./webgl/WebGLPrepare'),
     canvas: require('./canvas/CanvasPrepare')
 };
-},{"./canvas/CanvasPrepare":163,"./webgl/WebGLPrepare":165}],165:[function(require,module,exports){
+},{"./canvas/CanvasPrepare":165,"./webgl/WebGLPrepare":167}],167:[function(require,module,exports){
 var core = require('../../core'),
     SharedTicker = core.ticker.shared;
 
@@ -31136,7 +31512,7 @@ var core = require('../../core'),
  * @memberof PIXI
  * @param renderer {PIXI.WebGLRenderer} A reference to the current renderer
  */
-function Prepare(renderer)
+function WebGLPrepare(renderer)
 {
     /**
      * Reference to the renderer.
@@ -31175,7 +31551,7 @@ function Prepare(renderer)
 
     /**
      * If prepare is ticking (running).
-     * @type {Boolean}
+     * @type {boolean}
      * @private
      */
     this.ticking = false;
@@ -31187,24 +31563,23 @@ function Prepare(renderer)
 
 /**
  * The number of graphics or textures to upload to the GPU
- * @property {int} UPLOADS_PER_FRAME
+ * @property {number} UPLOADS_PER_FRAME
  * @static
  * @default 4
  */
-Prepare.UPLOADS_PER_FRAME = 4;
+WebGLPrepare.UPLOADS_PER_FRAME = 4;
 
-Prepare.prototype.constructor = Prepare;
-module.exports = Prepare;
+WebGLPrepare.prototype.constructor = WebGLPrepare;
+module.exports = WebGLPrepare;
 
-/** 
- * Upload all the textures and graphics to the GPU. 
- * @method upload
+/**
+ * Upload all the textures and graphics to the GPU.
  * @param {Function|PIXI.DisplayObject|PIXI.Container} item Either
  *        the container or display object to search for items to upload or
  *        the callback function, if items have been added using `prepare.add`.
  * @param {Function} done When completed
  */
-Prepare.prototype.upload = function(item, done)
+WebGLPrepare.prototype.upload = function(item, done)
 {
     if (typeof item === 'function')
     {
@@ -31222,7 +31597,7 @@ Prepare.prototype.upload = function(item, done)
     // Get the items for upload from the display
     if (this.queue.length)
     {
-        this.numLeft = Prepare.UPLOADS_PER_FRAME;
+        this.numLeft = WebGLPrepare.UPLOADS_PER_FRAME;
         this.completes.push(done);
         if (!this.ticking)
         {
@@ -31238,10 +31613,9 @@ Prepare.prototype.upload = function(item, done)
 
 /**
  * Handle tick update
- * @method tick
  * @private
  */
-Prepare.prototype.tick = function()
+WebGLPrepare.prototype.tick = function()
 {
     var i, len;
 
@@ -31269,9 +31643,9 @@ Prepare.prototype.tick = function()
     // We're finished
     if (this.queue.length)
     {
-        this.numLeft = Prepare.UPLOADS_PER_FRAME;
-    } 
-    else 
+        this.numLeft = WebGLPrepare.UPLOADS_PER_FRAME;
+    }
+    else
     {
         this.ticking = false;
         SharedTicker.remove(this.tick, this);
@@ -31286,20 +31660,19 @@ Prepare.prototype.tick = function()
 
 /**
  * Adds hooks for finding and uploading items.
- * @method register
  * @param {Function} [addHook] Function call that takes two parameters: `item:*, queue:Array`
           function must return `true` if it was able to add item to the queue.
  * @param {Function} [uploadHook] Function call that takes two parameters: `renderer:WebGLRenderer, item:*` and
  *        function must return `true` if it was able to handle upload of item.
- * @return {PIXI.webgl.Prepare} Instance of plugin for chaining.
+ * @return {PIXI.WebGLPrepare} Instance of plugin for chaining.
  */
-Prepare.prototype.register = function(addHook, uploadHook)
+WebGLPrepare.prototype.register = function(addHook, uploadHook)
 {
     if (addHook)
     {
         this.addHooks.push(addHook);
     }
-    if (uploadHook) 
+    if (uploadHook)
     {
         this.uploadHooks.push(uploadHook);
     }
@@ -31308,16 +31681,15 @@ Prepare.prototype.register = function(addHook, uploadHook)
 
 /**
  * Manually add an item to the uploading queue.
- * @method add
- * @param {PIXI.DisplayObject|PIXI.Container|*} item 
- * @return {PIXI.webgl.Prepare} Instance of plugin for chaining.
+ * @param {PIXI.DisplayObject|PIXI.Container|*} item Object to add to the queue
+ * @return {PIXI.WebGLPrepare} Instance of plugin for chaining.
  */
-Prepare.prototype.add = function(item)
+WebGLPrepare.prototype.add = function(item)
 {
-    var i, len; 
+    var i, len;
 
     // Add additional hooks for finding elements on special
-    // types of objects that 
+    // types of objects that
     for (i = 0, len = this.addHooks.length; i < len; i++)
     {
         if (this.addHooks[i](item, this.queue))
@@ -31339,9 +31711,8 @@ Prepare.prototype.add = function(item)
 
 /**
  * Destroys the plugin, don't use after this.
- * @method destroy
  */
-Prepare.prototype.destroy = function()
+WebGLPrepare.prototype.destroy = function()
 {
     if (this.ticking)
     {
@@ -31357,10 +31728,9 @@ Prepare.prototype.destroy = function()
 
 /**
  * Built-in hook to upload PIXI.Texture objects to the GPU
- * @method uploadBaseTextures
  * @private
  * @param {*} item Item to check
- * @return {Boolean} If item was uploaded.
+ * @return {boolean} If item was uploaded.
  */
 function uploadBaseTextures(renderer, item)
 {
@@ -31374,10 +31744,9 @@ function uploadBaseTextures(renderer, item)
 
 /**
  * Built-in hook to upload PIXI.Graphics to the GPU
- * @method uploadGraphics
  * @private
  * @param {*} item Item to check
- * @return {Boolean} If item was uploaded.
+ * @return {boolean} If item was uploaded.
  */
 function uploadGraphics(renderer, item)
 {
@@ -31391,11 +31760,10 @@ function uploadGraphics(renderer, item)
 
 /**
  * Built-in hook to find textures from Sprites
- * @method findTextures
  * @private
  * @param {PIXI.DisplayObject} item Display object to check
  * @param {Array<*>} queue Collection of items to upload
- * @return {Boolean} if a PIXI.Texture object was found.
+ * @return {boolean} if a PIXI.Texture object was found.
  */
 function findBaseTextures(item, queue)
 {
@@ -31422,11 +31790,10 @@ function findBaseTextures(item, queue)
 
 /**
  * Built-in hook to find graphics
- * @method findGraphics
  * @private
  * @param {PIXI.DisplayObject} item Display object to check
  * @param {Array<*>} queue Collection of items to upload
- * @return {Boolean} if a PIXI.Graphics object was found.
+ * @return {boolean} if a PIXI.Graphics object was found.
  */
 function findGraphics(item, queue)
 {
@@ -31438,7 +31805,7 @@ function findGraphics(item, queue)
     return false;
 }
 
-core.WebGLRenderer.registerPlugin('prepare', Prepare);
-},{"../../core":58}]},{},[139])(139)
+core.WebGLRenderer.registerPlugin('prepare', WebGLPrepare);
+},{"../../core":60}]},{},[141])(141)
 });
 //# sourceMappingURL=pixi.js.map
