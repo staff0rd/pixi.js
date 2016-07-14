@@ -394,7 +394,7 @@ Container.prototype.getBounds = function ()
 {
     if(!this._currentBounds)
     {
-
+        
         if (this.children.length === 0)
         {
             return math.Rectangle.EMPTY;
@@ -453,7 +453,7 @@ Container.prototype.getBounds = function ()
         bounds.height = maxY - minY;
 
         this._currentBounds = bounds;
-    }
+        }
 
     return this._currentBounds;
 };
@@ -481,9 +481,18 @@ Container.prototype.getLocalBounds = function ()
     this.transform.worldTransform = matrixCache;
     this.transform._worldID++;
 
+    
+
+    var bounds = this.getBounds();
+
+    for(i=0,j=this.children.length; i<j; i++)
+    {
+        this.children[i].updateTransform();
+    }	
+
     this._currentBounds = null;
 
-    return this.getBounds();
+    return bounds;
 };
 
 /**
