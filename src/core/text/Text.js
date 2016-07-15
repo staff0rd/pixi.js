@@ -547,7 +547,7 @@ Text.prototype.determineFontProperties = function (fontStyle)
             }
         }
 
-        properties.descent = i - baseline + 1;
+        properties.descent = i - baseline;
         properties.fontSize = properties.ascent + properties.descent;
 
         Text.fontPropertiesCache[fontStyle] = properties;
