@@ -1,3 +1,4 @@
+// @if DEBUG
 /*global console */
 var core = require('./core'),
     mesh = require('./mesh'),
@@ -283,6 +284,21 @@ Object.defineProperties(core, {
             return core.Filter;
         }
     },
+
+    /**
+     * @class
+     * @private
+     * @name PIXI.TransformManual
+     * @see PIXI.TransformBase
+     * @deprecated since version 4.0.0
+     */
+    TransformManual: {
+        get: function()
+        {
+            warn('TransformManual has been renamed to TransformBase, please update your pixi-spine');
+            return core.TransformBase;
+        }
+    }
 });
 
 core.DisplayObject.prototype.generateTexture = function(renderer, scaleMode, resolution)
@@ -538,4 +554,4 @@ core.utils.canUseNewCanvasBlendModes = function() {
     warn('utils.canUseNewCanvasBlendModes() is deprecated, please use CanvasTinter.canUseMultiply from now on');
     return core.CanvasTinter.canUseMultiply;
 };
-
+// @endif

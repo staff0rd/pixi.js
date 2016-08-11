@@ -1,5 +1,4 @@
-var math = require('../math'),
-    utils = require('../utils'),
+var utils = require('../utils'),
     DisplayObject = require('./DisplayObject');
 
 /**
@@ -364,6 +363,8 @@ Container.prototype.removeChildren = function (beginIndex, endIndex)
  */
 Container.prototype.updateTransform = function ()
 {
+    this._boundsID++;
+
     if (!this.visible)
     {
         return;
@@ -378,121 +379,38 @@ Container.prototype.updateTransform = function ()
     {
         this.children[i].updateTransform();
     }
-
-    this._currentBounds = null;
 };
 
 // performance increase to avoid using call.. (10x faster)
 Container.prototype.containerUpdateTransform = Container.prototype.updateTransform;
 
-/**
-* Retrieves the bounds of the Container as a rectangle. The bounds calculation takes all visible children into consideration.
- *
- * @return {PIXI.Rectangle} The rectangular bounding area
- */
-Container.prototype.getBounds = function ()
+
+Container.prototype.calculateBounds = function ()
 {
-    if(!this._currentBounds)
+    this._bounds.clear();
+
+    if(!this.visible)
     {
-        
-        if (this.children.length === 0)
-        {
-            return math.Rectangle.EMPTY;
-        }
-
-        // TODO the bounds have already been calculated this render session so return what we have
-
-        var minX = Infinity;
-        var minY = Infinity;
-
-        var maxX = -Infinity;
-        var maxY = -Infinity;
-
-        var childBounds;
-        var childMaxX;
-        var childMaxY;
-
-        var childVisible = false;
-
-        for (var i = 0, j = this.children.length; i < j; ++i)
-        {
-            var child = this.children[i];
-
-            if (!child.visible)
-            {
-                continue;
-            }
-
-            childBounds = this.children[i].getBounds();
-            if (childBounds === math.Rectangle.EMPTY) {
-                continue;
-            }
-            childVisible = true;
-
-            minX = minX < childBounds.x ? minX : childBounds.x;
-            minY = minY < childBounds.y ? minY : childBounds.y;
-
-            childMaxX = childBounds.width + childBounds.x;
-            childMaxY = childBounds.height + childBounds.y;
-
-            maxX = maxX > childMaxX ? maxX : childMaxX;
-            maxY = maxY > childMaxY ? maxY : childMaxY;
-        }
-
-        if (!childVisible)
-        {
-             this._currentBounds = math.Rectangle.EMPTY;
-             return this._currentBounds;
-        }
-
-        var bounds = this._bounds;
-
-        bounds.x = minX;
-        bounds.y = minY;
-        bounds.width = maxX - minX;
-        bounds.height = maxY - minY;
-
-        this._currentBounds = bounds;
-        }
-
-    return this._currentBounds;
-};
-
-Container.prototype.containerGetBounds = Container.prototype.getBounds;
-
-/**
- * Retrieves the non-global local bounds of the Container as a rectangle.
- * The calculation takes all visible children into consideration.
- *
- * @return {PIXI.Rectangle} The rectangular bounding area
- */
-Container.prototype.getLocalBounds = function ()
-{
-    var matrixCache = this.transform.worldTransform;
-
-    this.transform.worldTransform = math.Matrix.IDENTITY;
-    this.transform._worldID++;
-
-    for (var i = 0, j = this.children.length; i < j; ++i)
-    {
-        this.children[i].updateTransform();
+        return;
     }
 
-    this.transform.worldTransform = matrixCache;
-    this.transform._worldID++;
+    this._calculateBounds();
 
-    
-
-    var bounds = this.getBounds();
-
-    for(i=0,j=this.children.length; i<j; i++)
+    for (var i = 0; i < this.children.length; i++)
     {
-        this.children[i].updateTransform();
-    }	
+        var child = this.children[i];
 
-    this._currentBounds = null;
+        child.calculateBounds();
 
-    return bounds;
+        this._bounds.addBounds(child._bounds);
+    }
+
+    this._boundsID = this._lastBoundsID;
+};
+
+Container.prototype._calculateBounds = function ()
+{
+    //FILL IN//
 };
 
 /**

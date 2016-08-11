@@ -102,7 +102,7 @@ module.exports = function ()
         if (xmlUrl && xmlUrl.charAt(xmlUrl.length - 1) !== '/') {
             xmlUrl += '/';
         }
-    
+        
         var textureUrl = xmlUrl + resource.data.getElementsByTagName('page')[0].getAttribute('file');
         if (core.utils.TextureCache[textureUrl]) {
             //reuse existing texture

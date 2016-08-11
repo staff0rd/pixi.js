@@ -409,6 +409,8 @@ Text.prototype.updateTexture = function ()
     texture.baseTexture.hasLoaded = true;
     texture.baseTexture.resolution = this.resolution;
 
+    texture.baseTexture.realWidth = this.canvas.width;
+    texture.baseTexture.realHeight = this.canvas.height;
     texture.baseTexture.width = this.canvas.width / this.resolution;
     texture.baseTexture.height = this.canvas.height / this.resolution;
     texture.trim.width = texture._frame.width = this.canvas.width / this.resolution;
@@ -632,16 +634,14 @@ Text.prototype.wordWrap = function (text)
 };
 
 /**
- * Returns the bounds of the Text as a rectangle. The bounds calculation takes the worldTransform into account.
- *
- * @param matrix {PIXI.Matrix} the transformation matrix of the Text
- * @return {PIXI.Rectangle} the framing rectangle
+ * calculates the bounds of the Text as a rectangle. The bounds calculation takes the worldTransform into account.
  */
-Text.prototype.getBounds = function (matrix)
+Text.prototype._calculateBounds = function ()
 {
     this.updateText(true);
-
-    return Sprite.prototype.getBounds.call(this, matrix);
+    this.calculateVertices();
+    // if we have already done this on THIS frame.
+    this._bounds.addQuad(this.vertexData);
 };
 
 /**
@@ -674,10 +674,13 @@ Text.prototype._generateFillStyle = function (style, lines)
         var currentIteration;
         var stop;
 
+        var width = this.canvas.width / this.resolution;
+        var height = this.canvas.height / this.resolution;
+
         if (style.fillGradientType === CONST.TEXT_GRADIENT.LINEAR_VERTICAL)
         {
             // start the gradient at the top center of the canvas, and end at the bottom middle of the canvas
-            gradient = this.context.createLinearGradient(this.canvas.width / 2, 0, this.canvas.width / 2, this.canvas.height);
+            gradient = this.context.createLinearGradient(width / 2, 0, width / 2, height);
 
             // we need to repeat the gradient so that each invididual line of text has the same vertical gradient effect
             // ['#FF0000', '#00FF00', '#0000FF'] over 2 lines would create stops at 0.125, 0.25, 0.375, 0.625, 0.75, 0.875
@@ -697,7 +700,7 @@ Text.prototype._generateFillStyle = function (style, lines)
         else
         {
             // start the gradient at the center left of the canvas, and end at the center right of the canvas
-            gradient = this.context.createLinearGradient(0, this.canvas.height / 2, this.canvas.width, this.canvas.height / 2);
+            gradient = this.context.createLinearGradient(0, height / 2, width, height / 2);
 
             // can just evenly space out the gradients in this case, as multiple lines makes no difference to an even left to right gradient
             totalIterations = style.fill.length + 1;

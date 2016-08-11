@@ -5,6 +5,7 @@ var Container = require('../display/Container'),
     Sprite = require('../sprites/Sprite'),
     math = require('../math'),
     CONST = require('../const'),
+    Bounds = require('../display/Bounds'),
     bezierCurveTo = require('./utils/bezierCurveTo'),
     CanvasRenderer = require('../renderers/canvas/CanvasRenderer'),
     canvasRenderer,
@@ -118,7 +119,7 @@ function Graphics()
      * @member {PIXI.Rectangle}
      * @private
      */
-    this._localBounds = new math.Rectangle(0,0,1,1);
+    this._localBounds = new Bounds();
 
     /**
      * Used to detect if the graphics object has changed. If this is set to true then the graphics
@@ -127,18 +128,25 @@ function Graphics()
      * @member {boolean}
      * @private
      */
-    this.dirty = true;
+    this.dirty = 0;
 
     /**
-     * Used to detect if the WebGL graphics object has changed. If this is set to true then the
-     * graphics object will be recalculated.
-     *
-     * @member {boolean}
-     * @private
+     * Used to detect if we need to do a fast rect check using the id compare method
+     * @type {Number}
      */
-    this.glDirty = false;
+    this.fastRectDirty = -1;
 
-    this.boundsDirty = true;
+    /**
+     * Used to detect if we clear the graphics webGL data
+     * @type {Number}
+     */
+    this.clearDirty = 0;
+
+    /**
+     * Used to detect if we we need to recalculate local bounds
+     * @type {Number}
+     */
+    this.boundsDirty = -1;
 
     /**
      * Used to detect if the cached sprite object needs to be updated.
@@ -191,8 +199,7 @@ Graphics.prototype.clone = function ()
     clone.blendMode     = this.blendMode;
     clone.isMask        = this.isMask;
     clone.boundsPadding = this.boundsPadding;
-    clone.dirty         = true;
-    clone.glDirty       = true;
+    clone.dirty         = 0;
     clone.cachedSpriteDirty = this.cachedSpriteDirty;
 
     // copy graphics data
@@ -270,7 +277,7 @@ Graphics.prototype.moveTo = function (x, y)
 Graphics.prototype.lineTo = function (x, y)
 {
     this.currentPath.shape.points.push(x, y);
-    this.dirty = true;
+    this.dirty++;
 
     return this;
 };
@@ -325,7 +332,7 @@ Graphics.prototype.quadraticCurveTo = function (cpX, cpY, toX, toY)
                      ya + ( ((cpY + ( (toY - cpY) * j )) - ya) * j ) );
     }
 
-    this.dirty = this.boundsDirty = true;
+    this.dirty++;
 
     return this;
 };
@@ -364,7 +371,7 @@ Graphics.prototype.bezierCurveTo = function (cpX, cpY, cpX2, cpY2, toX, toY)
 
     bezierCurveTo(fromX, fromY, cpX, cpY, cpX2, cpY2, toX, toY, points);
 
-    this.dirty = this.boundsDirty = true;
+    this.dirty++;
 
     return this;
 };
@@ -432,7 +439,7 @@ Graphics.prototype.arcTo = function (x1, y1, x2, y2, radius)
         this.arc(cx + x1, cy + y1, radius, startAngle, endAngle, b1 * a2 > b2 * a1);
     }
 
-    this.dirty = this.boundsDirty = true;
+    this.dirty++;
 
     return this;
 };
@@ -512,7 +519,7 @@ Graphics.prototype.arc = function(cx, cy, radius, startAngle, endAngle, anticloc
                     ( (cTheta * -s) + (sTheta * c) ) * radius + cy);
     }
 
-    this.dirty = this.boundsDirty = true;
+    this.dirty++;
 
     return this;
 };
@@ -669,8 +676,8 @@ Graphics.prototype.clear = function ()
     this.lineWidth = 0;
     this.filling = false;
 
-    this.dirty = true;
-    this.clearDirty = true;
+    this.dirty++;
+    this.clearDirty++;
     this.graphicsData = [];
 
     return this;
@@ -693,11 +700,9 @@ Graphics.prototype.isFastRect = function() {
 Graphics.prototype._renderWebGL = function (renderer)
 {
     // if the sprite is not visible or the alpha is 0 then no need to render this element
-
-    if (this.glDirty)
+    if(this.dirty !== this.fastRectDirty)
     {
-        this.dirty = true;
-        this.glDirty = false;
+        this.fastRectDirty = this.dirty;
         this._fastRect = this.isFastRect();
     }
 
@@ -770,87 +775,24 @@ Graphics.prototype._renderCanvas = function (renderer)
  *  object's worldTransform.
  * @return {PIXI.Rectangle} the rectangular bounding area
  */
-Graphics.prototype.getBounds = function (matrix)
+Graphics.prototype._calculateBounds = function ()
 {
-    if(!this._currentBounds)
+    if (!this.renderable)
     {
-
-        // return an empty object if the item is a mask!
-        if (!this.renderable)
-        {
-            return math.Rectangle.EMPTY;
-        }
-
-        if (this.boundsDirty)
-        {
-            this.updateLocalBounds();
-
-            this.glDirty = true;
-            this.cachedSpriteDirty = true;
-            this.boundsDirty = false;
-        }
-
-        var bounds = this._localBounds;
-
-        var w0 = bounds.x;
-        var w1 = bounds.width + bounds.x;
-
-        var h0 = bounds.y;
-        var h1 = bounds.height + bounds.y;
-
-        var worldTransform = matrix || this.worldTransform;
-
-        var a = worldTransform.a;
-        var b = worldTransform.b;
-        var c = worldTransform.c;
-        var d = worldTransform.d;
-        var tx = worldTransform.tx;
-        var ty = worldTransform.ty;
-
-        var x1 = a * w1 + c * h1 + tx;
-        var y1 = d * h1 + b * w1 + ty;
-
-        var x2 = a * w0 + c * h1 + tx;
-        var y2 = d * h1 + b * w0 + ty;
-
-        var x3 = a * w0 + c * h0 + tx;
-        var y3 = d * h0 + b * w0 + ty;
-
-        var x4 =  a * w1 + c * h0 + tx;
-        var y4 =  d * h0 + b * w1 + ty;
-
-        var maxX = x1;
-        var maxY = y1;
-
-        var minX = x1;
-        var minY = y1;
-
-        minX = x2 < minX ? x2 : minX;
-        minX = x3 < minX ? x3 : minX;
-        minX = x4 < minX ? x4 : minX;
-
-        minY = y2 < minY ? y2 : minY;
-        minY = y3 < minY ? y3 : minY;
-        minY = y4 < minY ? y4 : minY;
-
-        maxX = x2 > maxX ? x2 : maxX;
-        maxX = x3 > maxX ? x3 : maxX;
-        maxX = x4 > maxX ? x4 : maxX;
-
-        maxY = y2 > maxY ? y2 : maxY;
-        maxY = y3 > maxY ? y3 : maxY;
-        maxY = y4 > maxY ? y4 : maxY;
-
-        this._bounds.x = minX;
-        this._bounds.width = maxX - minX;
-
-        this._bounds.y = minY;
-        this._bounds.height = maxY - minY;
-
-        this._currentBounds = this._bounds;
+        return;
     }
 
-    return this._currentBounds;
+    if (this.boundsDirty !== this.dirty)
+    {
+        this.boundsDirty = this.dirty;
+        this.updateLocalBounds();
+
+        this.dirty++;
+        this.cachedSpriteDirty = true;
+    }
+
+    var lb = this._localBounds;
+    this._bounds.addFrame(this.transform, lb.minX, lb.minY, lb.maxX, lb.maxY);
 };
 
 /**
@@ -978,18 +920,18 @@ Graphics.prototype.updateLocalBounds = function ()
 
     var padding = this.boundsPadding;
 
-    this._localBounds.x = minX - padding;
-    this._localBounds.width = (maxX - minX) + padding * 2;
+    this._localBounds.minX = minX - padding;
+    this._localBounds.maxX = maxX + padding * 2;
 
-    this._localBounds.y = minY - padding;
-    this._localBounds.height = (maxY - minY) + padding * 2;
+    this._localBounds.minY = minY - padding;
+    this._localBounds.maxY = maxY + padding * 2;
 };
 
 
 /**
  * Draws the given shape to this Graphics object. Can be any of Circle, Rectangle, Ellipse, Line or Polygon.
  *
- * @param shape {PIXI.math.Circle|PIXI.math.Ellipse|PIXI.math.Polygon|PIXI.math.Rectangle|PIXI.math.RoundedRectangle} The shape object to draw.
+ * @param shape {PIXI.Circle|PIXI.Ellipse|PIXI.Polygon|PIXI.Rectangle|PIXI.RoundedRectangle} The shape object to draw.
  * @return {PIXI.GraphicsData} The generated GraphicsData object.
  */
 Graphics.prototype.drawShape = function (shape)
@@ -1015,7 +957,7 @@ Graphics.prototype.drawShape = function (shape)
         this.currentPath = data;
     }
 
-    this.dirty = this.boundsDirty = true;
+    this.dirty++;
 
     return data;
 };

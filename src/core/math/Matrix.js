@@ -52,6 +52,7 @@ function Matrix()
      */
     this.ty = 0;
 
+    this.array = null;
 }
 
 Matrix.prototype.constructor = Matrix;
@@ -109,7 +110,7 @@ Matrix.prototype.set = function (a, b, c, d, tx, ty)
  * Creates an array from the current Matrix object.
  *
  * @param transpose {boolean} Whether we need to transpose the matrix or not
- * @param [out=Float32Array[]} If provided the array will be assigned to out
+ * @param [out=new Float32Array(9)] {Float32Array} If provided the array will be assigned to out
  * @return {number[]} the newly created array which contains the matrix
  */
 Matrix.prototype.toArray = function (transpose, out)
@@ -347,8 +348,8 @@ Matrix.prototype.prepend = function(matrix)
 
 /**
  * Decomposes the matrix (x, y, scaleX, scaleY, and rotation) and sets the properties on to a transform.
- * @param transform {PIXI.Transform} the transform to apply the properties to.
- * @return {PIXI.Transform} The transform with the newly applied properies
+ * @param transform {PIXI.Transform|PIXI.TransformStatic} the transform to apply the properties to.
+ * @return {PIXI.Transform|PIXI.TransformStatic} The transform with the newly applied properies
 */
 Matrix.prototype.decompose = function(transform)
 {
