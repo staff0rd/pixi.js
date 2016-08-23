@@ -64,11 +64,10 @@ function SpriteRenderer(renderer)
      * The default shaders that is used if a sprite doesn't have a more specific one.
      * there is a shader for each number of textures that can be rendererd.
      * These shaders will also be generated on the fly as required.
-     * @member {PIXI.Shader}
+     * @member {PIXI.Shader[]}
      */
     this.shaders = null;
 
-    this.textureCount = 0;
     this.currentIndex = 0;
     this.tick =0;
     this.groups = [];
@@ -263,7 +262,7 @@ SpriteRenderer.prototype.flush = function ()
         vertexData = sprite.vertexData;
 
         //TODO this sum does not need to be set each frame..
-        tint = (sprite.tint >> 16) + (sprite.tint & 0xff00) + ((sprite.tint & 0xff) << 16) + (sprite.worldAlpha * 255 << 24);
+        tint = sprite._tintRGB + (sprite.worldAlpha * 255 << 24);
         uvs = sprite._texture._uvs.uvsUint32;
         textureId = nextTexture._id;
 
@@ -390,7 +389,7 @@ SpriteRenderer.prototype.stop = function ()
  */
 SpriteRenderer.prototype.destroy = function ()
 {
-    for (var i = 0; i < this.vertexCount; i++) {
+    for (var i = 0; i < this.vaoMax; i++) {
         this.vertexBuffers[i].destroy();
         this.vaos[i].destroy();
     }

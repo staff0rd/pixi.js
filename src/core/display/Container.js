@@ -428,59 +428,85 @@ Container.prototype.renderWebGL = function (renderer)
         return;
     }
 
-    var i, j;
 
     // do a quick check to see if this element has a mask or a filter.
     if (this._mask || this._filters)
     {
-        renderer.currentRenderer.flush();
-
-        // push filter first as we need to ensure the stencil buffer is correct for any masking
-        if (this._filters && this._filters.length)
-        {
-            renderer.filterManager.pushFilter(this, this._filters);
-        }
-
-        if (this._mask)
-        {
-            renderer.maskManager.pushMask(this, this._mask);
-        }
-
-        renderer.currentRenderer.start();
-
-        // add this object to the batch, only rendered if it has a texture.
-        this._renderWebGL(renderer);
-
-        // now loop through the children and make sure they get rendered
-        for (i = 0, j = this.children.length; i < j; i++)
-        {
-            this.children[i].renderWebGL(renderer);
-        }
-
-        renderer.currentRenderer.flush();
-
-        if (this._mask)
-        {
-            renderer.maskManager.popMask(this, this._mask);
-        }
-
-        if (this._filters)
-        {
-            renderer.filterManager.popFilter();
-
-        }
-        renderer.currentRenderer.start();
+        this.renderAdvancedWebGL(renderer);
     }
     else
     {
         this._renderWebGL(renderer);
 
         // simple render children!
-        for (i = 0, j = this.children.length; i < j; ++i)
+        for (var i = 0, j = this.children.length; i < j; ++i)
         {
             this.children[i].renderWebGL(renderer);
         }
     }
+};
+
+Container.prototype.renderAdvancedWebGL = function (renderer)
+{
+    renderer.currentRenderer.flush();
+
+    var filters = this._filters;
+    var mask = this._mask;
+    var i, j;
+
+    // push filter first as we need to ensure the stencil buffer is correct for any masking
+    if ( filters )
+    {
+        if(!this._enabledFilters)
+        {
+            this._enabledFilters = [];
+        }
+
+        this._enabledFilters.length = 0;
+
+        for (i = 0; i < filters.length; i++)
+        {
+            if(filters[i].enabled)
+            {
+                this._enabledFilters.push( filters[i] );
+            }
+        }
+
+        if( this._enabledFilters.length )
+        {
+            renderer.filterManager.pushFilter(this, this._enabledFilters);
+        }
+    }
+
+    if ( mask )
+    {
+        renderer.maskManager.pushMask(this, this._mask);
+    }
+
+    renderer.currentRenderer.start();
+
+    // add this object to the batch, only rendered if it has a texture.
+    this._renderWebGL(renderer);
+
+    // now loop through the children and make sure they get rendered
+    for (i = 0, j = this.children.length; i < j; i++)
+    {
+        this.children[i].renderWebGL(renderer);
+    }
+
+    renderer.currentRenderer.flush();
+
+    if ( mask )
+    {
+        renderer.maskManager.popMask(this, this._mask);
+    }
+
+    if ( filters && this._enabledFilters && this._enabledFilters.length )
+    {
+        renderer.filterManager.popFilter();
+    }
+
+    renderer.currentRenderer.start();
 };
 
 /**
@@ -537,7 +563,8 @@ Container.prototype.renderCanvas = function (renderer)
 };
 
 /**
- * Destroys the container
+ * Removes all internal references and listeners as well as removes children from the display list. 
+ * Do not use a Container after calling `destroy`.
  * @param [options] {object|boolean} Options parameter. A boolean will act as if all options have been set to that value
  * @param [options.children=false] {boolean} if set to true, all the children will have their destroy
  *      method called as well. 'options' will be passed on to those calls.
@@ -547,15 +574,17 @@ Container.prototype.destroy = function (options)
     DisplayObject.prototype.destroy.call(this);
 
     var destroyChildren = typeof options === 'boolean' ? options : options && options.children;
+
+    var oldChildren = this.children;
+    this.children = null;
+
     if (destroyChildren)
     {
-        for (var i = 0, j = this.children.length; i < j; ++i)
+        for (var i = oldChildren.length - 1; i >= 0; i--)
         {
-            this.children[i].destroy(options);
+            var child = oldChildren[i];
+            child.parent = null;
+            child.destroy(options);
         }
     }
-
-    this.removeChildren();
-
-    this.children = null;
 };
