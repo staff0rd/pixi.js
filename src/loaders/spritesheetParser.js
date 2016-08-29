@@ -32,6 +32,10 @@ module.exports = function ()
         else 
         {
             resourcePath = path.dirname(resource.url.replace(this.baseUrl, '')) + '/' + resource.data.meta.image;
+            var queryString = resource.url.split('?')[1];
+            if (queryString) {
+                resourcePath += '?' + queryString;
+            }
         }
 
         // load the image for this sheet
