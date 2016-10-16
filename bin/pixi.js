@@ -1,6 +1,6 @@
 /*!
  * pixi.js - v4.0.3
- * Compiled Wed Oct 05 2016 14:56:52 GMT+1100 (AUS Eastern Daylight Time)
+ * Compiled Tue Oct 11 2016 19:33:46 GMT+1100 (AUS Eastern Daylight Time)
  *
  * pixi.js is licensed under the MIT License.
  * http://www.opensource.org/licenses/mit-license
@@ -8220,10 +8220,6 @@ var Container = function (_DisplayObject) {
         var index1 = this.getChildIndex(child);
         var index2 = this.getChildIndex(child2);
 
-        if (index1 < 0 || index2 < 0) {
-            throw new Error('swapChildren: Both the supplied DisplayObjects must be children of the caller.');
-        }
-
         this.children[index1] = child2;
         this.children[index2] = child;
         this.onChildrenChange(index1 < index2 ? index1 : index2);
@@ -16256,6 +16252,11 @@ var WebGLRenderer = function (_SystemRenderer) {
     WebGLRenderer.prototype._initContext = function _initContext() {
         var gl = this.gl;
 
+        // restore a context if it was previously lost
+        if (gl.isContextLost() && gl.getExtension('WEBGL_lose_context')) {
+            gl.getExtension('WEBGL_lose_context').restoreContext();
+        }
+
         // create a texture manager...
         this.textureManager = new _TextureManager2.default(this);
         this.textureGC = new _TextureGarbageCollector2.default(this);
@@ -18829,6 +18830,10 @@ var fragTemplate = ['precision mediump float;', 'void main(void){', 'float test 
 function checkMaxIfStatmentsInShader(maxIfs, gl) {
     var createTempContext = !gl;
 
+    if (maxIfs === 0) {
+        throw new Error('Invalid value of `0` passed to `checkMaxIfStatementsInShader`');
+    }
+
     if (createTempContext) {
         var tinyCanvas = document.createElement('canvas');
 
@@ -19178,6 +19183,8 @@ var Sprite = function (_Container) {
         var vertexData = this.vertexData;
         var trim = texture.trim;
         var orig = texture.orig;
+        var anchor = this._anchor;
+
         var w0 = 0;
         var w1 = 0;
         var h0 = 0;
@@ -19186,17 +19193,17 @@ var Sprite = function (_Container) {
         if (trim) {
             // if the sprite is trimmed and is not a tilingsprite then we need to add the extra
             // space before transforming the sprite coords.
-            w1 = trim.x - this.anchor._x * orig.width;
+            w1 = trim.x - anchor._x * orig.width;
             w0 = w1 + trim.width;
 
-            h1 = trim.y - this.anchor._y * orig.height;
+            h1 = trim.y - anchor._y * orig.height;
             h0 = h1 + trim.height;
         } else {
-            w0 = orig.width * (1 - this.anchor._x);
-            w1 = orig.width * -this.anchor._x;
+            w0 = orig.width * (1 - anchor._x);
+            w1 = orig.width * -anchor._x;
 
-            h0 = orig.height * (1 - this.anchor._y);
-            h1 = orig.height * -this.anchor._y;
+            h0 = orig.height * (1 - anchor._y);
+            h1 = orig.height * -anchor._y;
         }
 
         // xy
@@ -19231,6 +19238,7 @@ var Sprite = function (_Container) {
         var texture = this._texture;
         var vertexData = this.vertexTrimmedData;
         var orig = texture.orig;
+        var anchor = this._anchor;
 
         // lets calculate the new untrimmed bounds..
         var wt = this.transform.worldTransform;
@@ -19241,11 +19249,11 @@ var Sprite = function (_Container) {
         var tx = wt.tx;
         var ty = wt.ty;
 
-        var w0 = orig.width * (1 - this.anchor._x);
-        var w1 = orig.width * -this.anchor._x;
+        var w0 = orig.width * (1 - anchor._x);
+        var w1 = orig.width * -anchor._x;
 
-        var h0 = orig.height * (1 - this.anchor._y);
-        var h1 = orig.height * -this.anchor._y;
+        var h0 = orig.height * (1 - anchor._y);
+        var h1 = orig.height * -anchor._y;
 
         // xy
         vertexData[0] = a * w1 + c * h1 + tx;
@@ -22853,6 +22861,14 @@ function _inherits(subClass, superClass) { if (typeof superClass !== "function" 
  * let sprite2 = new PIXI.Sprite(texture);
  * ```
  *
+ * Textures made from SVGs, loaded or not, cannot be used before the file finishes processing. You can check for this by checking the sprite's _textureID property.
+ * ```js
+ * var texture = PIXI.Texture.fromImage('assets/image.svg');
+ * var sprite1 = new PIXI.Sprite(texture);
+ * //sprite1._textureID should not be undefined if the texture has finished processing the SVG file
+ * ```
+ * You can use a ticker or rAF to ensure your sprites load the finished textures after processing. See issue #3068.
+ *
  * @class
  * @extends EventEmitter
  * @memberof PIXI
@@ -24846,6 +24862,7 @@ Object.defineProperties(core, {
      * @deprecated since version 3.0.0
      */
     Stage: {
+        enumerable: true,
         get: function get() {
             warn('You do not need to use a PIXI Stage any more, you can simply render any container.');
 
@@ -24862,6 +24879,7 @@ Object.defineProperties(core, {
      * @deprecated since version 3.0.0
      */
     DisplayObjectContainer: {
+        enumerable: true,
         get: function get() {
             warn('DisplayObjectContainer has been shortened to Container, please use Container from now on.');
 
@@ -24878,6 +24896,7 @@ Object.defineProperties(core, {
      * @deprecated since version 3.0.0
      */
     Strip: {
+        enumerable: true,
         get: function get() {
             warn('The Strip class has been renamed to Mesh and moved to mesh.Mesh, please use mesh.Mesh from now on.');
 
@@ -24894,6 +24913,7 @@ Object.defineProperties(core, {
      * @deprecated since version 3.0.0
      */
     Rope: {
+        enumerable: true,
         get: function get() {
             warn('The Rope class has been moved to mesh.Rope, please use mesh.Rope from now on.');
 
@@ -24910,6 +24930,7 @@ Object.defineProperties(core, {
      * @deprecated since version 4.0.0
      */
     ParticleContainer: {
+        enumerable: true,
         get: function get() {
             warn('The ParticleContainer class has been moved to particles.ParticleContainer, ' + 'please use particles.ParticleContainer from now on.');
 
@@ -24926,6 +24947,7 @@ Object.defineProperties(core, {
      * @deprecated since version 3.0.0
      */
     MovieClip: {
+        enumerable: true,
         get: function get() {
             warn('The MovieClip class has been moved to extras.MovieClip, please use extras.MovieClip from now on.');
 
@@ -24942,6 +24964,7 @@ Object.defineProperties(core, {
      * @deprecated since version 3.0.0
      */
     TilingSprite: {
+        enumerable: true,
         get: function get() {
             warn('The TilingSprite class has been moved to extras.TilingSprite, ' + 'please use extras.TilingSprite from now on.');
 
@@ -24958,6 +24981,7 @@ Object.defineProperties(core, {
      * @deprecated since version 3.0.0
      */
     BitmapText: {
+        enumerable: true,
         get: function get() {
             warn('The BitmapText class has been moved to extras.BitmapText, ' + 'please use extras.BitmapText from now on.');
 
@@ -24974,6 +24998,7 @@ Object.defineProperties(core, {
      * @deprecated since version 3.0.0
      */
     blendModes: {
+        enumerable: true,
         get: function get() {
             warn('The blendModes has been moved to BLEND_MODES, please use BLEND_MODES from now on.');
 
@@ -24990,6 +25015,7 @@ Object.defineProperties(core, {
      * @deprecated since version 3.0.0
      */
     scaleModes: {
+        enumerable: true,
         get: function get() {
             warn('The scaleModes has been moved to SCALE_MODES, please use SCALE_MODES from now on.');
 
@@ -25006,6 +25032,7 @@ Object.defineProperties(core, {
      * @deprecated since version 3.0.0
      */
     BaseTextureCache: {
+        enumerable: true,
         get: function get() {
             warn('The BaseTextureCache class has been moved to utils.BaseTextureCache, ' + 'please use utils.BaseTextureCache from now on.');
 
@@ -25022,6 +25049,7 @@ Object.defineProperties(core, {
      * @deprecated since version 3.0.0
      */
     TextureCache: {
+        enumerable: true,
         get: function get() {
             warn('The TextureCache class has been moved to utils.TextureCache, ' + 'please use utils.TextureCache from now on.');
 
@@ -25038,6 +25066,7 @@ Object.defineProperties(core, {
      * @deprecated since version 3.0.6
      */
     math: {
+        enumerable: true,
         get: function get() {
             warn('The math namespace is deprecated, please access members already accessible on PIXI.');
 
@@ -25053,6 +25082,7 @@ Object.defineProperties(core, {
      * @deprecated since version 3.0.6
      */
     AbstractFilter: {
+        enumerable: true,
         get: function get() {
             warn('AstractFilter has been renamed to Filter, please use PIXI.Filter');
 
@@ -25068,6 +25098,7 @@ Object.defineProperties(core, {
      * @deprecated since version 4.0.0
      */
     TransformManual: {
+        enumerable: true,
         get: function get() {
             warn('TransformManual has been renamed to TransformBase, please update your pixi-spine');
 
@@ -25076,45 +25107,45 @@ Object.defineProperties(core, {
     }
 });
 
-core.DisplayObject.prototype.generateTexture = function (renderer, scaleMode, resolution) {
+core.DisplayObject.prototype.generateTexture = function generateTexture(renderer, scaleMode, resolution) {
     warn('generateTexture has moved to the renderer, please use renderer.generateTexture(displayObject)');
 
-    return renderer.generateTexture(undefined, scaleMode, resolution);
+    return renderer.generateTexture(this, scaleMode, resolution);
 };
 
-core.Graphics.prototype.generateTexture = function (scaleMode, resolution) {
+core.Graphics.prototype.generateTexture = function generateTexture(scaleMode, resolution) {
     warn('graphics generate texture has moved to the renderer. ' + 'Or to render a graphics to a texture using canvas please use generateCanvasTexture');
 
-    return undefined.generateCanvasTexture(scaleMode, resolution);
+    return this.generateCanvasTexture(scaleMode, resolution);
 };
 
-core.RenderTexture.prototype.render = function (displayObject, matrix, clear, updateTransform) {
-    undefined.legacyRenderer.render(displayObject, undefined, clear, matrix, !updateTransform);
+core.RenderTexture.prototype.render = function render(displayObject, matrix, clear, updateTransform) {
+    this.legacyRenderer.render(displayObject, this, clear, matrix, !updateTransform);
     warn('RenderTexture.render is now deprecated, please use renderer.render(displayObject, renderTexture)');
 };
 
-core.RenderTexture.prototype.getImage = function (target) {
+core.RenderTexture.prototype.getImage = function getImage(target) {
     warn('RenderTexture.getImage is now deprecated, please use renderer.extract.image(target)');
 
-    return undefined.legacyRenderer.extract.image(target);
+    return this.legacyRenderer.extract.image(target);
 };
 
-core.RenderTexture.prototype.getBase64 = function (target) {
+core.RenderTexture.prototype.getBase64 = function getBase64(target) {
     warn('RenderTexture.getBase64 is now deprecated, please use renderer.extract.base64(target)');
 
-    return undefined.legacyRenderer.extract.base64(target);
+    return this.legacyRenderer.extract.base64(target);
 };
 
-core.RenderTexture.prototype.getCanvas = function (target) {
+core.RenderTexture.prototype.getCanvas = function getCanvas(target) {
     warn('RenderTexture.getCanvas is now deprecated, please use renderer.extract.canvas(target)');
 
-    return undefined.legacyRenderer.extract.canvas(target);
+    return this.legacyRenderer.extract.canvas(target);
 };
 
-core.RenderTexture.prototype.getPixels = function (target) {
+core.RenderTexture.prototype.getPixels = function getPixels(target) {
     warn('RenderTexture.getPixels is now deprecated, please use renderer.extract.pixels(target)');
 
-    return undefined.legacyRenderer.pixels(target);
+    return this.legacyRenderer.pixels(target);
 };
 
 /**
@@ -25125,8 +25156,8 @@ core.RenderTexture.prototype.getPixels = function (target) {
  * @deprecated since version 3.0.0
  * @param {PIXI.Texture} texture - The texture to set to.
  */
-core.Sprite.prototype.setTexture = function (texture) {
-    undefined.texture = texture;
+core.Sprite.prototype.setTexture = function setTexture(texture) {
+    this.texture = texture;
     warn('setTexture is now deprecated, please use the texture property, e.g : sprite.texture = texture;');
 };
 
@@ -25137,8 +25168,8 @@ core.Sprite.prototype.setTexture = function (texture) {
  * @deprecated since version 3.0.0
  * @param {string} text - The text to set to.
  */
-extras.BitmapText.prototype.setText = function (text) {
-    undefined.text = text;
+extras.BitmapText.prototype.setText = function setText(text) {
+    this.text = text;
     warn('setText is now deprecated, please use the text property, e.g : myBitmapText.text = \'my text\';');
 };
 
@@ -25149,8 +25180,8 @@ extras.BitmapText.prototype.setText = function (text) {
  * @deprecated since version 3.0.0
  * @param {string} text - The text to set to.
  */
-core.Text.prototype.setText = function (text) {
-    undefined.text = text;
+core.Text.prototype.setText = function setText(text) {
+    this.text = text;
     warn('setText is now deprecated, please use the text property, e.g : myText.text = \'my text\';');
 };
 
@@ -25161,8 +25192,8 @@ core.Text.prototype.setText = function (text) {
  * @deprecated since version 3.0.0
  * @param {*} style - The style to set to.
  */
-core.Text.prototype.setStyle = function (style) {
-    undefined.style = style;
+core.Text.prototype.setStyle = function setStyle(style) {
+    this.style = style;
     warn('setStyle is now deprecated, please use the style property, e.g : myText.style = style;');
 };
 
@@ -25246,8 +25277,8 @@ Object.defineProperties(core.TextStyle.prototype, {
  * @deprecated since version 3.0.0
  * @param {PIXI.Rectangle} frame - The frame to set.
  */
-core.Texture.prototype.setFrame = function (frame) {
-    undefined.frame = frame;
+core.Texture.prototype.setFrame = function setFrame(frame) {
+    this.frame = frame;
     warn('setFrame is now deprecated, please use the frame property, e.g: myTexture.frame = frame;');
 };
 
@@ -25310,7 +25341,7 @@ core.utils.canUseNewCanvasBlendModes = function () {
     return core.CanvasTinter.canUseMultiply;
 };
 
-},{"./core":61,"./extras":129,"./filters":140,"./mesh":157,"./particles":160}],119:[function(require,module,exports){
+},{"./core":61,"./extras":129,"./filters":140,"./mesh":158,"./particles":161}],119:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -27984,7 +28015,7 @@ var BlurFilter = function (_core$Filter) {
     ,
     set: function set(value) {
       this.blurXFilter.blur = this.blurYFilter.blur = value;
-      this.padding = Math.max(Math.abs(this.blurYFilter.strength), Math.abs(this.blurYFilter.strength)) * 2;
+      this.padding = Math.max(Math.abs(this.blurXFilter.strength), Math.abs(this.blurYFilter.strength)) * 2;
     }
 
     /**
@@ -28033,7 +28064,7 @@ var BlurFilter = function (_core$Filter) {
     ,
     set: function set(value) {
       this.blurXFilter.blur = value;
-      this.padding = Math.max(Math.abs(this.blurYFilter.strength), Math.abs(this.blurYFilter.strength)) * 2;
+      this.padding = Math.max(Math.abs(this.blurXFilter.strength), Math.abs(this.blurYFilter.strength)) * 2;
     }
 
     /**
@@ -28058,7 +28089,7 @@ var BlurFilter = function (_core$Filter) {
     ,
     set: function set(value) {
       this.blurYFilter.blur = value;
-      this.padding = Math.max(Math.abs(this.blurYFilter.strength), Math.abs(this.blurYFilter.strength)) * 2;
+      this.padding = Math.max(Math.abs(this.blurXFilter.strength), Math.abs(this.blurYFilter.strength)) * 2;
     }
   }]);
 
@@ -31777,16 +31808,6 @@ var _core = require('../core');
 
 var core = _interopRequireWildcard(_core);
 
-var _pixiGlCore = require('pixi-gl-core');
-
-var _pixiGlCore2 = _interopRequireDefault(_pixiGlCore);
-
-var _MeshShader = require('./webgl/MeshShader');
-
-var _MeshShader2 = _interopRequireDefault(_MeshShader);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
 function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj; } else { var newObj = {}; if (obj != null) { for (var key in obj) { if (Object.prototype.hasOwnProperty.call(obj, key)) newObj[key] = obj[key]; } } newObj.default = obj; return newObj; } }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -31806,498 +31827,262 @@ var tempPolygon = new core.Polygon();
  */
 
 var Mesh = function (_core$Container) {
-    _inherits(Mesh, _core$Container);
+  _inherits(Mesh, _core$Container);
+
+  /**
+   * @param {PIXI.Texture} texture - The texture to use
+   * @param {Float32Array} [vertices] - if you want to specify the vertices
+   * @param {Float32Array} [uvs] - if you want to specify the uvs
+   * @param {Uint16Array} [indices] - if you want to specify the indices
+   * @param {number} [drawMode] - the drawMode, can be any of the Mesh.DRAW_MODES consts
+   */
+  function Mesh(texture, vertices, uvs, indices, drawMode) {
+    _classCallCheck(this, Mesh);
 
     /**
-     * @param {PIXI.Texture} texture - The texture to use
-     * @param {Float32Array} [vertices] - if you want to specify the vertices
-     * @param {Float32Array} [uvs] - if you want to specify the uvs
-     * @param {Uint16Array} [indices] - if you want to specify the indices
-     * @param {number} [drawMode] - the drawMode, can be any of the Mesh.DRAW_MODES consts
+     * The texture of the Mesh
+     *
+     * @member {PIXI.Texture}
+     * @private
      */
-    function Mesh(texture, vertices, uvs, indices, drawMode) {
-        _classCallCheck(this, Mesh);
+    var _this = _possibleConstructorReturn(this, _core$Container.call(this));
 
-        /**
-         * The texture of the Mesh
-         *
-         * @member {PIXI.Texture}
-         * @private
-         */
-        var _this = _possibleConstructorReturn(this, _core$Container.call(this));
+    _this._texture = null;
 
-        _this._texture = null;
+    /**
+     * The Uvs of the Mesh
+     *
+     * @member {Float32Array}
+     */
+    _this.uvs = uvs || new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]);
 
-        /**
-         * The Uvs of the Mesh
-         *
-         * @member {Float32Array}
-         */
-        _this.uvs = uvs || new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]);
+    /**
+     * An array of vertices
+     *
+     * @member {Float32Array}
+     */
+    _this.vertices = vertices || new Float32Array([0, 0, 100, 0, 100, 100, 0, 100]);
 
-        /**
-         * An array of vertices
-         *
-         * @member {Float32Array}
-         */
-        _this.vertices = vertices || new Float32Array([0, 0, 100, 0, 100, 100, 0, 100]);
+    /*
+     * @member {Uint16Array} An array containing the indices of the vertices
+     */
+    //  TODO auto generate this based on draw mode!
+    _this.indices = indices || new Uint16Array([0, 1, 3, 2]);
 
-        /*
-         * @member {Uint16Array} An array containing the indices of the vertices
-         */
-        //  TODO auto generate this based on draw mode!
-        _this.indices = indices || new Uint16Array([0, 1, 3, 2]);
+    /**
+     * Version of mesh uvs are dirty or not
+     *
+     * @member {number}
+     */
+    _this.dirty = 0;
 
-        /**
-         * Whether the Mesh is dirty or not
-         *
-         * @member {number}
-         */
-        _this.dirty = 0;
-        _this.indexDirty = 0;
+    /**
+     * Version of mesh indices
+     *
+     * @member {number}
+     */
+    _this.indexDirty = 0;
 
-        /**
-         * The blend mode to be applied to the sprite. Set to `PIXI.BLEND_MODES.NORMAL` to remove
-         * any blend mode.
-         *
-         * @member {number}
-         * @default PIXI.BLEND_MODES.NORMAL
-         * @see PIXI.BLEND_MODES
-         */
-        _this.blendMode = core.BLEND_MODES.NORMAL;
+    /**
+     * The blend mode to be applied to the sprite. Set to `PIXI.BLEND_MODES.NORMAL` to remove
+     * any blend mode.
+     *
+     * @member {number}
+     * @default PIXI.BLEND_MODES.NORMAL
+     * @see PIXI.BLEND_MODES
+     */
+    _this.blendMode = core.BLEND_MODES.NORMAL;
 
-        /**
-         * Triangles in canvas mode are automatically antialiased, use this value to force triangles
-         * to overlap a bit with each other.
-         *
-         * @member {number}
-         */
-        _this.canvasPadding = 0;
+    /**
+     * Triangles in canvas mode are automatically antialiased, use this value to force triangles
+     * to overlap a bit with each other.
+     *
+     * @member {number}
+     */
+    _this.canvasPadding = 0;
 
-        /**
-         * The way the Mesh should be drawn, can be any of the {@link PIXI.mesh.Mesh.DRAW_MODES} consts
-         *
-         * @member {number}
-         * @see PIXI.mesh.Mesh.DRAW_MODES
-         */
-        _this.drawMode = drawMode || Mesh.DRAW_MODES.TRIANGLE_MESH;
+    /**
+     * The way the Mesh should be drawn, can be any of the {@link PIXI.mesh.Mesh.DRAW_MODES} consts
+     *
+     * @member {number}
+     * @see PIXI.mesh.Mesh.DRAW_MODES
+     */
+    _this.drawMode = drawMode || Mesh.DRAW_MODES.TRIANGLE_MESH;
 
-        // run texture setter;
-        _this.texture = texture;
+    // run texture setter;
+    _this.texture = texture;
 
-        /**
-         * The default shader that is used if a mesh doesn't have a more specific one.
-         *
-         * @member {PIXI.Shader}
-         */
-        _this.shader = null;
+    /**
+     * The default shader that is used if a mesh doesn't have a more specific one.
+     *
+     * @member {PIXI.Shader}
+     */
+    _this.shader = null;
 
-        /**
-         * The tint applied to the mesh. This is a [r,g,b] value. A value of [1,1,1] will remove any
-         * tint effect.
-         *
-         * @member {number}
-         * @memberof PIXI.mesh.Mesh#
-         */
-        _this.tintRgb = new Float32Array([1, 1, 1]);
+    /**
+     * The tint applied to the mesh. This is a [r,g,b] value. A value of [1,1,1] will remove any
+     * tint effect.
+     *
+     * @member {number}
+     * @memberof PIXI.mesh.Mesh#
+     */
+    _this.tintRgb = new Float32Array([1, 1, 1]);
 
-        _this._glDatas = [];
-        return _this;
+    _this._glDatas = [];
+    return _this;
+  }
+
+  /**
+   * Renders the object using the WebGL renderer
+   *
+   * @private
+   * @param {PIXI.WebGLRenderer} renderer - a reference to the WebGL renderer
+   */
+
+
+  Mesh.prototype._renderWebGL = function _renderWebGL(renderer) {
+    renderer.setObjectRenderer(renderer.plugins.mesh);
+    renderer.plugins.mesh.render(this);
+  };
+
+  /**
+   * Renders the object using the Canvas renderer
+   *
+   * @private
+   * @param {PIXI.CanvasRenderer} renderer - The canvas renderer.
+   */
+
+
+  Mesh.prototype._renderCanvas = function _renderCanvas(renderer) {
+    renderer.plugins.mesh.render(this);
+  };
+
+  /**
+   * When the texture is updated, this event will fire to update the scale and frame
+   *
+   * @private
+   */
+
+
+  Mesh.prototype._onTextureUpdate = function _onTextureUpdate() {}
+  /* empty */
+
+
+  /**
+   * Returns the bounds of the mesh as a rectangle. The bounds calculation takes the worldTransform into account.
+   *
+   */
+  ;
+
+  Mesh.prototype._calculateBounds = function _calculateBounds() {
+    // TODO - we can cache local bounds and use them if they are dirty (like graphics)
+    this._bounds.addVertices(this.transform, this.vertices, 0, this.vertices.length);
+  };
+
+  /**
+   * Tests if a point is inside this mesh. Works only for TRIANGLE_MESH
+   *
+   * @param {PIXI.Point} point - the point to test
+   * @return {boolean} the result of the test
+   */
+
+
+  Mesh.prototype.containsPoint = function containsPoint(point) {
+    if (!this.getBounds().contains(point.x, point.y)) {
+      return false;
+    }
+
+    this.worldTransform.applyInverse(point, tempPoint);
+
+    var vertices = this.vertices;
+    var points = tempPolygon.points;
+    var indices = this.indices;
+    var len = this.indices.length;
+    var step = this.drawMode === Mesh.DRAW_MODES.TRIANGLES ? 3 : 1;
+
+    for (var i = 0; i + 2 < len; i += step) {
+      var ind0 = indices[i] * 2;
+      var ind1 = indices[i + 1] * 2;
+      var ind2 = indices[i + 2] * 2;
+
+      points[0] = vertices[ind0];
+      points[1] = vertices[ind0 + 1];
+      points[2] = vertices[ind1];
+      points[3] = vertices[ind1 + 1];
+      points[4] = vertices[ind2];
+      points[5] = vertices[ind2 + 1];
+
+      if (tempPolygon.contains(tempPoint.x, tempPoint.y)) {
+        return true;
+      }
+    }
+
+    return false;
+  };
+
+  /**
+   * The texture that the mesh uses.
+   *
+   * @member {PIXI.Texture}
+   * @memberof PIXI.mesh.Mesh#
+   */
+
+
+  _createClass(Mesh, [{
+    key: 'texture',
+    get: function get() {
+      return this._texture;
     }
 
     /**
-     * Renders the object using the WebGL renderer
+     * Sets the texture the mesh uses.
      *
-     * @private
-     * @param {PIXI.WebGLRenderer} renderer - a reference to the WebGL renderer
+     * @param {Texture} value - The value to set.
      */
+    ,
+    set: function set(value) {
+      if (this._texture === value) {
+        return;
+      }
 
+      this._texture = value;
 
-    Mesh.prototype._renderWebGL = function _renderWebGL(renderer) {
-        // get rid of any thing that may be batching.
-        renderer.flush();
-
-        //  renderer.plugins.mesh.render(this);
-        var gl = renderer.gl;
-        var glData = this._glDatas[renderer.CONTEXT_UID];
-
-        if (!glData) {
-            glData = {
-                shader: new _MeshShader2.default(gl),
-                vertexBuffer: _pixiGlCore2.default.GLBuffer.createVertexBuffer(gl, this.vertices, gl.STREAM_DRAW),
-                uvBuffer: _pixiGlCore2.default.GLBuffer.createVertexBuffer(gl, this.uvs, gl.STREAM_DRAW),
-                indexBuffer: _pixiGlCore2.default.GLBuffer.createIndexBuffer(gl, this.indices, gl.STATIC_DRAW),
-                // build the vao object that will render..
-                vao: new _pixiGlCore2.default.VertexArrayObject(gl),
-                dirty: this.dirty,
-                indexDirty: this.indexDirty
-            };
-
-            // build the vao object that will render..
-            glData.vao = new _pixiGlCore2.default.VertexArrayObject(gl).addIndex(glData.indexBuffer).addAttribute(glData.vertexBuffer, glData.shader.attributes.aVertexPosition, gl.FLOAT, false, 2 * 4, 0).addAttribute(glData.uvBuffer, glData.shader.attributes.aTextureCoord, gl.FLOAT, false, 2 * 4, 0);
-
-            this._glDatas[renderer.CONTEXT_UID] = glData;
-        }
-
-        if (this.dirty !== glData.dirty) {
-            glData.dirty = this.dirty;
-            glData.uvBuffer.upload();
-        }
-
-        if (this.indexDirty !== glData.indexDirty) {
-            glData.indexDirty = this.indexDirty;
-            glData.indexBuffer.upload();
-        }
-
-        glData.vertexBuffer.upload();
-
-        renderer.bindShader(glData.shader);
-        renderer.bindTexture(this._texture, 0);
-        renderer.state.setBlendMode(this.blendMode);
-
-        glData.shader.uniforms.translationMatrix = this.worldTransform.toArray(true);
-        glData.shader.uniforms.alpha = this.worldAlpha;
-        glData.shader.uniforms.tint = this.tintRgb;
-
-        var drawMode = this.drawMode === Mesh.DRAW_MODES.TRIANGLE_MESH ? gl.TRIANGLE_STRIP : gl.TRIANGLES;
-
-        glData.vao.bind().draw(drawMode, this.indices.length).unbind();
-    };
-
-    /**
-     * Renders the object using the Canvas renderer
-     *
-     * @private
-     * @param {PIXI.CanvasRenderer} renderer - The canvas renderer.
-     */
-
-
-    Mesh.prototype._renderCanvas = function _renderCanvas(renderer) {
-        var context = renderer.context;
-
-        var transform = this.worldTransform;
-        var res = renderer.resolution;
-
-        if (renderer.roundPixels) {
-            context.setTransform(transform.a * res, transform.b * res, transform.c * res, transform.d * res, transform.tx * res | 0, transform.ty * res | 0);
+      if (value) {
+        // wait for the texture to load
+        if (value.baseTexture.hasLoaded) {
+          this._onTextureUpdate();
         } else {
-            context.setTransform(transform.a * res, transform.b * res, transform.c * res, transform.d * res, transform.tx * res, transform.ty * res);
+          value.once('update', this._onTextureUpdate, this);
         }
-
-        if (this.drawMode === Mesh.DRAW_MODES.TRIANGLE_MESH) {
-            this._renderCanvasTriangleMesh(context);
-        } else {
-            this._renderCanvasTriangles(context);
-        }
-    };
+      }
+    }
 
     /**
-     * Draws the object in Triangle Mesh mode using canvas
+     * The tint applied to the mesh. This is a hex value. A value of 0xFFFFFF will remove any tint effect.
      *
-     * @private
-     * @param {CanvasRenderingContext2D} context - The current drawing context
-     */
-
-
-    Mesh.prototype._renderCanvasTriangleMesh = function _renderCanvasTriangleMesh(context) {
-        // draw triangles!!
-        var vertices = this.vertices;
-        var uvs = this.uvs;
-        var length = vertices.length / 2;
-
-        // this.count++;
-
-        for (var i = 0; i < length - 2; i++) {
-            // draw some triangles!
-            var index = i * 2;
-
-            this._renderCanvasDrawTriangle(context, vertices, uvs, index, index + 2, index + 4);
-        }
-    };
-
-    /**
-     * Draws the object in triangle mode using canvas
-     *
-     * @private
-     * @param {CanvasRenderingContext2D} context - the current drawing context
-     */
-
-
-    Mesh.prototype._renderCanvasTriangles = function _renderCanvasTriangles(context) {
-        // draw triangles!!
-        var vertices = this.vertices;
-        var uvs = this.uvs;
-        var indices = this.indices;
-        var length = indices.length;
-        // this.count++;
-
-        for (var i = 0; i < length; i += 3) {
-            // draw some triangles!
-            var index0 = indices[i] * 2;
-            var index1 = indices[i + 1] * 2;
-            var index2 = indices[i + 2] * 2;
-
-            this._renderCanvasDrawTriangle(context, vertices, uvs, index0, index1, index2);
-        }
-    };
-
-    /**
-     * Draws one of the triangles that form this Mesh
-     *
-     * @private
-     * @param {CanvasRenderingContext2D} context - the current drawing context
-     * @param {Float32Array} vertices - a reference to the vertices of the Mesh
-     * @param {Float32Array} uvs - a reference to the uvs of the Mesh
-     * @param {number} index0 - the index of the first vertex
-     * @param {number} index1 - the index of the second vertex
-     * @param {number} index2 - the index of the third vertex
-     */
-
-
-    Mesh.prototype._renderCanvasDrawTriangle = function _renderCanvasDrawTriangle(context, vertices, uvs, index0, index1, index2) {
-        var base = this._texture.baseTexture;
-        var textureSource = base.source;
-        var textureWidth = base.width;
-        var textureHeight = base.height;
-
-        var u0 = uvs[index0] * base.width;
-        var u1 = uvs[index1] * base.width;
-        var u2 = uvs[index2] * base.width;
-        var v0 = uvs[index0 + 1] * base.height;
-        var v1 = uvs[index1 + 1] * base.height;
-        var v2 = uvs[index2 + 1] * base.height;
-
-        var x0 = vertices[index0];
-        var x1 = vertices[index1];
-        var x2 = vertices[index2];
-        var y0 = vertices[index0 + 1];
-        var y1 = vertices[index1 + 1];
-        var y2 = vertices[index2 + 1];
-
-        if (this.canvasPadding > 0) {
-            var paddingX = this.canvasPadding / this.worldTransform.a;
-            var paddingY = this.canvasPadding / this.worldTransform.d;
-            var centerX = (x0 + x1 + x2) / 3;
-            var centerY = (y0 + y1 + y2) / 3;
-
-            var normX = x0 - centerX;
-            var normY = y0 - centerY;
-
-            var dist = Math.sqrt(normX * normX + normY * normY);
-
-            x0 = centerX + normX / dist * (dist + paddingX);
-            y0 = centerY + normY / dist * (dist + paddingY);
-
-            //
-
-            normX = x1 - centerX;
-            normY = y1 - centerY;
-
-            dist = Math.sqrt(normX * normX + normY * normY);
-            x1 = centerX + normX / dist * (dist + paddingX);
-            y1 = centerY + normY / dist * (dist + paddingY);
-
-            normX = x2 - centerX;
-            normY = y2 - centerY;
-
-            dist = Math.sqrt(normX * normX + normY * normY);
-            x2 = centerX + normX / dist * (dist + paddingX);
-            y2 = centerY + normY / dist * (dist + paddingY);
-        }
-
-        context.save();
-        context.beginPath();
-
-        context.moveTo(x0, y0);
-        context.lineTo(x1, y1);
-        context.lineTo(x2, y2);
-
-        context.closePath();
-
-        context.clip();
-
-        // Compute matrix transform
-        var delta = u0 * v1 + v0 * u2 + u1 * v2 - v1 * u2 - v0 * u1 - u0 * v2;
-        var deltaA = x0 * v1 + v0 * x2 + x1 * v2 - v1 * x2 - v0 * x1 - x0 * v2;
-        var deltaB = u0 * x1 + x0 * u2 + u1 * x2 - x1 * u2 - x0 * u1 - u0 * x2;
-        var deltaC = u0 * v1 * x2 + v0 * x1 * u2 + x0 * u1 * v2 - x0 * v1 * u2 - v0 * u1 * x2 - u0 * x1 * v2;
-        var deltaD = y0 * v1 + v0 * y2 + y1 * v2 - v1 * y2 - v0 * y1 - y0 * v2;
-        var deltaE = u0 * y1 + y0 * u2 + u1 * y2 - y1 * u2 - y0 * u1 - u0 * y2;
-        var deltaF = u0 * v1 * y2 + v0 * y1 * u2 + y0 * u1 * v2 - y0 * v1 * u2 - v0 * u1 * y2 - u0 * y1 * v2;
-
-        context.transform(deltaA / delta, deltaD / delta, deltaB / delta, deltaE / delta, deltaC / delta, deltaF / delta);
-
-        context.drawImage(textureSource, 0, 0, textureWidth * base.resolution, textureHeight * base.resolution, 0, 0, textureWidth, textureHeight);
-
-        context.restore();
-    };
-
-    /**
-     * Renders a flat Mesh
-     *
-     * @private
-     * @param {PIXI.mesh.Mesh} mesh - The Mesh to render
-     */
-
-
-    Mesh.prototype.renderMeshFlat = function renderMeshFlat(mesh) {
-        var context = this.context;
-        var vertices = mesh.vertices;
-        var length = vertices.length / 2;
-
-        // this.count++;
-
-        context.beginPath();
-
-        for (var i = 1; i < length - 2; ++i) {
-            // draw some triangles!
-            var index = i * 2;
-
-            var x0 = vertices[index];
-            var y0 = vertices[index + 1];
-
-            var x1 = vertices[index + 2];
-            var y1 = vertices[index + 3];
-
-            var x2 = vertices[index + 4];
-            var y2 = vertices[index + 5];
-
-            context.moveTo(x0, y0);
-            context.lineTo(x1, y1);
-            context.lineTo(x2, y2);
-        }
-
-        context.fillStyle = '#FF0000';
-        context.fill();
-        context.closePath();
-    };
-
-    /**
-     * When the texture is updated, this event will fire to update the scale and frame
-     *
-     * @private
-     */
-
-
-    Mesh.prototype._onTextureUpdate = function _onTextureUpdate() {}
-    /* empty */
-
-
-    /**
-     * Returns the bounds of the mesh as a rectangle. The bounds calculation takes the worldTransform into account.
-     *
-     */
-    ;
-
-    Mesh.prototype._calculateBounds = function _calculateBounds() {
-        // TODO - we can cache local bounds and use them if they are dirty (like graphics)
-        this._bounds.addVertices(this.transform, this.vertices, 0, this.vertices.length);
-    };
-
-    /**
-     * Tests if a point is inside this mesh. Works only for TRIANGLE_MESH
-     *
-     * @param {PIXI.Point} point - the point to test
-     * @return {boolean} the result of the test
-     */
-
-
-    Mesh.prototype.containsPoint = function containsPoint(point) {
-        if (!this.getBounds().contains(point.x, point.y)) {
-            return false;
-        }
-
-        this.worldTransform.applyInverse(point, tempPoint);
-
-        var vertices = this.vertices;
-        var points = tempPolygon.points;
-        var indices = this.indices;
-        var len = this.indices.length;
-        var step = this.drawMode === Mesh.DRAW_MODES.TRIANGLES ? 3 : 1;
-
-        for (var i = 0; i + 2 < len; i += step) {
-            var ind0 = indices[i] * 2;
-            var ind1 = indices[i + 1] * 2;
-            var ind2 = indices[i + 2] * 2;
-
-            points[0] = vertices[ind0];
-            points[1] = vertices[ind0 + 1];
-            points[2] = vertices[ind1];
-            points[3] = vertices[ind1 + 1];
-            points[4] = vertices[ind2];
-            points[5] = vertices[ind2 + 1];
-
-            if (tempPolygon.contains(tempPoint.x, tempPoint.y)) {
-                return true;
-            }
-        }
-
-        return false;
-    };
-
-    /**
-     * The texture that the mesh uses.
-     *
-     * @member {PIXI.Texture}
+     * @member {number}
      * @memberof PIXI.mesh.Mesh#
+     * @default 0xFFFFFF
      */
 
+  }, {
+    key: 'tint',
+    get: function get() {
+      return core.utils.rgb2hex(this.tintRgb);
+    }
 
-    _createClass(Mesh, [{
-        key: 'texture',
-        get: function get() {
-            return this._texture;
-        }
+    /**
+     * Sets the tint the mesh uses.
+     *
+     * @param {number} value - The value to set.
+     */
+    ,
+    set: function set(value) {
+      this.tintRgb = core.utils.hex2rgb(value, this.tintRgb);
+    }
+  }]);
 
-        /**
-         * Sets the texture the mesh uses.
-         *
-         * @param {Texture} value - The value to set.
-         */
-        ,
-        set: function set(value) {
-            if (this._texture === value) {
-                return;
-            }
-
-            this._texture = value;
-
-            if (value) {
-                // wait for the texture to load
-                if (value.baseTexture.hasLoaded) {
-                    this._onTextureUpdate();
-                } else {
-                    value.once('update', this._onTextureUpdate, this);
-                }
-            }
-        }
-
-        /**
-         * The tint applied to the mesh. This is a hex value. A value of 0xFFFFFF will remove any tint effect.
-         *
-         * @member {number}
-         * @memberof PIXI.mesh.Mesh#
-         * @default 0xFFFFFF
-         */
-
-    }, {
-        key: 'tint',
-        get: function get() {
-            return core.utils.rgb2hex(this.tintRgb);
-        }
-
-        /**
-         * Sets the tint the mesh uses.
-         *
-         * @param {number} value - The value to set.
-         */
-        ,
-        set: function set(value) {
-            this.tintRgb = core.utils.hex2rgb(value, this.tintRgb);
-        }
-    }]);
-
-    return Mesh;
+  return Mesh;
 }(core.Container);
 
 /**
@@ -32313,11 +32098,11 @@ var Mesh = function (_core$Container) {
 
 exports.default = Mesh;
 Mesh.DRAW_MODES = {
-    TRIANGLE_MESH: 0,
-    TRIANGLES: 1
+  TRIANGLE_MESH: 0,
+  TRIANGLES: 1
 };
 
-},{"../core":61,"./webgl/MeshShader":158,"pixi-gl-core":14}],154:[function(require,module,exports){
+},{"../core":61}],154:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -33115,12 +32900,292 @@ exports.default = Rope;
 
 exports.__esModule = true;
 
+var _core = require('../../core');
+
+var core = _interopRequireWildcard(_core);
+
+var _Mesh = require('../Mesh');
+
+var _Mesh2 = _interopRequireDefault(_Mesh);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj; } else { var newObj = {}; if (obj != null) { for (var key in obj) { if (Object.prototype.hasOwnProperty.call(obj, key)) newObj[key] = obj[key]; } } newObj.default = obj; return newObj; } }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+/**
+ * Renderer dedicated to meshes.
+ *
+ * @class
+ * @private
+ * @memberof PIXI
+ */
+var MeshSpriteRenderer = function () {
+    /**
+     * @param {PIXI.CanvasRenderer} renderer - The renderer this downport works for
+     */
+    function MeshSpriteRenderer(renderer) {
+        _classCallCheck(this, MeshSpriteRenderer);
+
+        this.renderer = renderer;
+    }
+
+    /**
+     * Renders the Mesh
+     *
+     * @param {PIXI.mesh.Mesh} mesh - the Mesh to render
+     */
+
+
+    MeshSpriteRenderer.prototype.render = function render(mesh) {
+        var renderer = this.renderer;
+        var context = renderer.context;
+
+        var transform = mesh.worldTransform;
+        var res = renderer.resolution;
+
+        if (renderer.roundPixels) {
+            context.setTransform(transform.a * res, transform.b * res, transform.c * res, transform.d * res, transform.tx * res | 0, transform.ty * res | 0);
+        } else {
+            context.setTransform(transform.a * res, transform.b * res, transform.c * res, transform.d * res, transform.tx * res, transform.ty * res);
+        }
+
+        if (mesh.drawMode === _Mesh2.default.DRAW_MODES.TRIANGLE_MESH) {
+            this._renderTriangleMesh(mesh);
+        } else {
+            this._renderTriangles(mesh);
+        }
+    };
+
+    /**
+     * Draws the object in Triangle Mesh mode
+     *
+     * @private
+     * @param {PIXI.mesh.Mesh} mesh - the Mesh to render
+     */
+
+
+    MeshSpriteRenderer.prototype._renderTriangleMesh = function _renderTriangleMesh(mesh) {
+        // draw triangles!!
+        var length = mesh.vertices.length / 2;
+
+        for (var i = 0; i < length - 2; i++) {
+            // draw some triangles!
+            var index = i * 2;
+
+            this._renderDrawTriangle(mesh, index, index + 2, index + 4);
+        }
+    };
+
+    /**
+     * Draws the object in triangle mode using canvas
+     *
+     * @private
+     * @param {PIXI.mesh.Mesh} mesh - the current mesh
+     */
+
+
+    MeshSpriteRenderer.prototype._renderTriangles = function _renderTriangles(mesh) {
+        // draw triangles!!
+        var indices = mesh.indices;
+        var length = indices.length;
+
+        for (var i = 0; i < length; i += 3) {
+            // draw some triangles!
+            var index0 = indices[i] * 2;
+            var index1 = indices[i + 1] * 2;
+            var index2 = indices[i + 2] * 2;
+
+            this._renderDrawTriangle(mesh, index0, index1, index2);
+        }
+    };
+
+    /**
+     * Draws one of the triangles that from the Mesh
+     *
+     * @private
+     * @param {PIXI.mesh.Mesh} mesh - the current mesh
+     * @param {number} index0 - the index of the first vertex
+     * @param {number} index1 - the index of the second vertex
+     * @param {number} index2 - the index of the third vertex
+     */
+
+
+    MeshSpriteRenderer.prototype._renderDrawTriangle = function _renderDrawTriangle(mesh, index0, index1, index2) {
+        var context = this.renderer.context;
+        var uvs = mesh.uvs;
+        var vertices = mesh.vertices;
+        var texture = mesh._texture;
+
+        if (!texture.valid) {
+            return;
+        }
+
+        var base = texture.baseTexture;
+        var textureSource = base.source;
+        var textureWidth = base.width;
+        var textureHeight = base.height;
+
+        var u0 = uvs[index0] * base.width;
+        var u1 = uvs[index1] * base.width;
+        var u2 = uvs[index2] * base.width;
+        var v0 = uvs[index0 + 1] * base.height;
+        var v1 = uvs[index1 + 1] * base.height;
+        var v2 = uvs[index2 + 1] * base.height;
+
+        var x0 = vertices[index0];
+        var x1 = vertices[index1];
+        var x2 = vertices[index2];
+        var y0 = vertices[index0 + 1];
+        var y1 = vertices[index1 + 1];
+        var y2 = vertices[index2 + 1];
+
+        if (mesh.canvasPadding > 0) {
+            var paddingX = mesh.canvasPadding / mesh.worldTransform.a;
+            var paddingY = mesh.canvasPadding / mesh.worldTransform.d;
+            var centerX = (x0 + x1 + x2) / 3;
+            var centerY = (y0 + y1 + y2) / 3;
+
+            var normX = x0 - centerX;
+            var normY = y0 - centerY;
+
+            var dist = Math.sqrt(normX * normX + normY * normY);
+
+            x0 = centerX + normX / dist * (dist + paddingX);
+            y0 = centerY + normY / dist * (dist + paddingY);
+
+            //
+
+            normX = x1 - centerX;
+            normY = y1 - centerY;
+
+            dist = Math.sqrt(normX * normX + normY * normY);
+            x1 = centerX + normX / dist * (dist + paddingX);
+            y1 = centerY + normY / dist * (dist + paddingY);
+
+            normX = x2 - centerX;
+            normY = y2 - centerY;
+
+            dist = Math.sqrt(normX * normX + normY * normY);
+            x2 = centerX + normX / dist * (dist + paddingX);
+            y2 = centerY + normY / dist * (dist + paddingY);
+        }
+
+        context.save();
+        context.beginPath();
+
+        context.moveTo(x0, y0);
+        context.lineTo(x1, y1);
+        context.lineTo(x2, y2);
+
+        context.closePath();
+
+        context.clip();
+
+        // Compute matrix transform
+        var delta = u0 * v1 + v0 * u2 + u1 * v2 - v1 * u2 - v0 * u1 - u0 * v2;
+        var deltaA = x0 * v1 + v0 * x2 + x1 * v2 - v1 * x2 - v0 * x1 - x0 * v2;
+        var deltaB = u0 * x1 + x0 * u2 + u1 * x2 - x1 * u2 - x0 * u1 - u0 * x2;
+        var deltaC = u0 * v1 * x2 + v0 * x1 * u2 + x0 * u1 * v2 - x0 * v1 * u2 - v0 * u1 * x2 - u0 * x1 * v2;
+        var deltaD = y0 * v1 + v0 * y2 + y1 * v2 - v1 * y2 - v0 * y1 - y0 * v2;
+        var deltaE = u0 * y1 + y0 * u2 + u1 * y2 - y1 * u2 - y0 * u1 - u0 * y2;
+        var deltaF = u0 * v1 * y2 + v0 * y1 * u2 + y0 * u1 * v2 - y0 * v1 * u2 - v0 * u1 * y2 - u0 * y1 * v2;
+
+        context.transform(deltaA / delta, deltaD / delta, deltaB / delta, deltaE / delta, deltaC / delta, deltaF / delta);
+
+        context.drawImage(textureSource, 0, 0, textureWidth * base.resolution, textureHeight * base.resolution, 0, 0, textureWidth, textureHeight);
+
+        context.restore();
+    };
+
+    /**
+     * Renders a flat Mesh
+     *
+     * @private
+     * @param {PIXI.mesh.Mesh} mesh - The Mesh to render
+     */
+
+
+    MeshSpriteRenderer.prototype.renderMeshFlat = function renderMeshFlat(mesh) {
+        var context = this.renderer.context;
+        var vertices = mesh.vertices;
+        var length = vertices.length / 2;
+
+        // this.count++;
+
+        context.beginPath();
+
+        for (var i = 1; i < length - 2; ++i) {
+            // draw some triangles!
+            var index = i * 2;
+
+            var x0 = vertices[index];
+            var y0 = vertices[index + 1];
+
+            var x1 = vertices[index + 2];
+            var y1 = vertices[index + 3];
+
+            var x2 = vertices[index + 4];
+            var y2 = vertices[index + 5];
+
+            context.moveTo(x0, y0);
+            context.lineTo(x1, y1);
+            context.lineTo(x2, y2);
+        }
+
+        context.fillStyle = '#FF0000';
+        context.fill();
+        context.closePath();
+    };
+
+    /**
+     * destroy the the renderer.
+     *
+     */
+
+
+    MeshSpriteRenderer.prototype.destroy = function destroy() {
+        this.renderer = null;
+    };
+
+    return MeshSpriteRenderer;
+}();
+
+exports.default = MeshSpriteRenderer;
+
+
+core.CanvasRenderer.registerPlugin('mesh', MeshSpriteRenderer);
+
+},{"../../core":61,"../Mesh":153}],158:[function(require,module,exports){
+'use strict';
+
+exports.__esModule = true;
+
 var _Mesh = require('./Mesh');
 
 Object.defineProperty(exports, 'Mesh', {
   enumerable: true,
   get: function get() {
     return _interopRequireDefault(_Mesh).default;
+  }
+});
+
+var _MeshRenderer = require('./webgl/MeshRenderer');
+
+Object.defineProperty(exports, 'MeshRenderer', {
+  enumerable: true,
+  get: function get() {
+    return _interopRequireDefault(_MeshRenderer).default;
+  }
+});
+
+var _CanvasMeshRenderer = require('./canvas/CanvasMeshRenderer');
+
+Object.defineProperty(exports, 'CanvasMeshRenderer', {
+  enumerable: true,
+  get: function get() {
+    return _interopRequireDefault(_CanvasMeshRenderer).default;
   }
 });
 
@@ -33151,27 +33216,29 @@ Object.defineProperty(exports, 'Rope', {
   }
 });
 
-var _MeshShader = require('./webgl/MeshShader');
-
-Object.defineProperty(exports, 'MeshShader', {
-  enumerable: true,
-  get: function get() {
-    return _interopRequireDefault(_MeshShader).default;
-  }
-});
-
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-},{"./Mesh":153,"./NineSlicePlane":154,"./Plane":155,"./Rope":156,"./webgl/MeshShader":158}],158:[function(require,module,exports){
+},{"./Mesh":153,"./NineSlicePlane":154,"./Plane":155,"./Rope":156,"./canvas/CanvasMeshRenderer":157,"./webgl/MeshRenderer":159}],159:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
+exports.MeshRenderer = undefined;
 
-var _Shader2 = require('../../core/Shader');
+var _core = require('../../core');
 
-var _Shader3 = _interopRequireDefault(_Shader2);
+var core = _interopRequireWildcard(_core);
+
+var _pixiGlCore = require('pixi-gl-core');
+
+var _pixiGlCore2 = _interopRequireDefault(_pixiGlCore);
+
+var _Mesh = require('../Mesh');
+
+var _Mesh2 = _interopRequireDefault(_Mesh);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj; } else { var newObj = {}; if (obj != null) { for (var key in obj) { if (Object.prototype.hasOwnProperty.call(obj, key)) newObj[key] = obj[key]; } } newObj.default = obj; return newObj; } }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
@@ -33179,34 +33246,109 @@ function _possibleConstructorReturn(self, call) { if (!self) { throw new Referen
 
 function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 
+ // eslint-disable-line no-undef
+
 /**
- * @class
- * @extends PIXI.Shader
- * @memberof PIXI.mesh
+ * WebGL renderer plugin for tiling sprites
  */
-var MeshShader = function (_Shader) {
-    _inherits(MeshShader, _Shader);
+
+var MeshRenderer = exports.MeshRenderer = function (_core$ObjectRenderer) {
+    _inherits(MeshRenderer, _core$ObjectRenderer);
 
     /**
-     * @param {WebGLRenderingContext} gl - The WebGLRenderingContext.
+     * constructor for renderer
+     *
+     * @param {WebGLRenderer} renderer The renderer this tiling awesomeness works for.
      */
-    function MeshShader(gl) {
-        _classCallCheck(this, MeshShader);
+    function MeshRenderer(renderer) {
+        _classCallCheck(this, MeshRenderer);
 
-        return _possibleConstructorReturn(this, _Shader.call(this, gl,
-        // vertex shader
-        ['attribute vec2 aVertexPosition;', 'attribute vec2 aTextureCoord;', 'uniform mat3 translationMatrix;', 'uniform mat3 projectionMatrix;', 'varying vec2 vTextureCoord;', 'void main(void){', '   gl_Position = vec4((projectionMatrix * translationMatrix * vec3(aVertexPosition, 1.0)).xy, 0.0, 1.0);', // eslint-disable-line max-len
-        '   vTextureCoord = aTextureCoord;', '}'].join('\n'), ['varying vec2 vTextureCoord;', 'uniform float alpha;', 'uniform vec3 tint;', 'uniform sampler2D uSampler;', 'void main(void){', '   gl_FragColor = texture2D(uSampler, vTextureCoord) * vec4(tint * alpha, alpha);',
-        // '   gl_FragColor = vec4(1.0);',
-        '}'].join('\n')));
+        var _this = _possibleConstructorReturn(this, _core$ObjectRenderer.call(this, renderer));
+
+        _this.shader = null;
+        return _this;
     }
 
-    return MeshShader;
-}(_Shader3.default);
+    /**
+     * Sets up the renderer context and necessary buffers.
+     *
+     * @private
+     */
 
-exports.default = MeshShader;
 
-},{"../../core/Shader":41}],159:[function(require,module,exports){
+    MeshRenderer.prototype.onContextChange = function onContextChange() {
+        var gl = this.renderer.gl;
+
+        this.shader = new core.Shader(gl, "#define GLSLIFY 1\nattribute vec2 aVertexPosition;\nattribute vec2 aTextureCoord;\n\nuniform mat3 translationMatrix;\nuniform mat3 projectionMatrix;\n\nvarying vec2 vTextureCoord;\n\nvoid main(void)\n{\n    gl_Position = vec4((projectionMatrix * translationMatrix * vec3(aVertexPosition, 1.0)).xy, 0.0, 1.0);\n\n    vTextureCoord = aTextureCoord;\n}\n", "#define GLSLIFY 1\nvarying vec2 vTextureCoord;\nuniform float alpha;\nuniform vec3 tint;\n\nuniform sampler2D uSampler;\n\nvoid main(void)\n{\n    gl_FragColor = texture2D(uSampler, vTextureCoord) * vec4(tint * alpha, alpha);\n}\n");
+    };
+
+    /**
+     * renders mesh
+     *
+     * @param {PIXI.mesh.Mesh} mesh mesh instance
+     */
+
+
+    MeshRenderer.prototype.render = function render(mesh) {
+        var renderer = this.renderer;
+        var gl = renderer.gl;
+        var texture = mesh._texture;
+
+        if (!texture.valid) {
+            return;
+        }
+
+        var glData = mesh._glDatas[renderer.CONTEXT_UID];
+
+        if (!glData) {
+            glData = {
+                shader: this.shader,
+                vertexBuffer: _pixiGlCore2.default.GLBuffer.createVertexBuffer(gl, mesh.vertices, gl.STREAM_DRAW),
+                uvBuffer: _pixiGlCore2.default.GLBuffer.createVertexBuffer(gl, mesh.uvs, gl.STREAM_DRAW),
+                indexBuffer: _pixiGlCore2.default.GLBuffer.createIndexBuffer(gl, mesh.indices, gl.STATIC_DRAW),
+                // build the vao object that will render..
+                vao: new _pixiGlCore2.default.VertexArrayObject(gl),
+                dirty: mesh.dirty,
+                indexDirty: mesh.indexDirty
+            };
+
+            // build the vao object that will render..
+            glData.vao = new _pixiGlCore2.default.VertexArrayObject(gl).addIndex(glData.indexBuffer).addAttribute(glData.vertexBuffer, glData.shader.attributes.aVertexPosition, gl.FLOAT, false, 2 * 4, 0).addAttribute(glData.uvBuffer, glData.shader.attributes.aTextureCoord, gl.FLOAT, false, 2 * 4, 0);
+
+            mesh._glDatas[renderer.CONTEXT_UID] = glData;
+        }
+
+        if (mesh.dirty !== glData.dirty) {
+            glData.dirty = mesh.dirty;
+            glData.uvBuffer.upload();
+        }
+
+        if (mesh.indexDirty !== glData.indexDirty) {
+            glData.indexDirty = mesh.indexDirty;
+            glData.indexBuffer.upload();
+        }
+
+        glData.vertexBuffer.upload();
+
+        renderer.bindShader(glData.shader);
+        renderer.bindTexture(texture, 0);
+        renderer.state.setBlendMode(mesh.blendMode);
+
+        glData.shader.uniforms.translationMatrix = mesh.worldTransform.toArray(true);
+        glData.shader.uniforms.alpha = mesh.worldAlpha;
+        glData.shader.uniforms.tint = mesh.tintRgb;
+
+        var drawMode = mesh.drawMode === _Mesh2.default.DRAW_MODES.TRIANGLE_MESH ? gl.TRIANGLE_STRIP : gl.TRIANGLES;
+
+        glData.vao.bind().draw(drawMode, mesh.indices.length).unbind();
+    };
+
+    return MeshRenderer;
+}(core.ObjectRenderer);
+
+core.WebGLRenderer.registerPlugin('mesh', MeshRenderer);
+
+},{"../../core":61,"../Mesh":153,"pixi-gl-core":14}],160:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -33538,7 +33680,7 @@ var ParticleContainer = function (_core$Container) {
 
 exports.default = ParticleContainer;
 
-},{"../core":61}],160:[function(require,module,exports){
+},{"../core":61}],161:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -33563,7 +33705,7 @@ Object.defineProperty(exports, 'ParticleRenderer', {
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-},{"./ParticleContainer":159,"./webgl/ParticleRenderer":162}],161:[function(require,module,exports){
+},{"./ParticleContainer":160,"./webgl/ParticleRenderer":163}],162:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -33813,7 +33955,7 @@ var ParticleBuffer = function () {
 
 exports.default = ParticleBuffer;
 
-},{"../../core/utils/createIndicesForQuads":113,"pixi-gl-core":14}],162:[function(require,module,exports){
+},{"../../core/utils/createIndicesForQuads":113,"pixi-gl-core":14}],163:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -34259,7 +34401,7 @@ exports.default = ParticleRenderer;
 
 core.WebGLRenderer.registerPlugin('particle', ParticleRenderer);
 
-},{"../../core":61,"./ParticleBuffer":161,"./ParticleShader":163}],163:[function(require,module,exports){
+},{"../../core":61,"./ParticleBuffer":162,"./ParticleShader":164}],164:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -34302,7 +34444,7 @@ var ParticleShader = function (_Shader) {
 
 exports.default = ParticleShader;
 
-},{"../../core/Shader":41}],164:[function(require,module,exports){
+},{"../../core/Shader":41}],165:[function(require,module,exports){
 "use strict";
 
 // References:
@@ -34320,7 +34462,7 @@ if (!Math.sign) {
     };
 }
 
-},{}],165:[function(require,module,exports){
+},{}],166:[function(require,module,exports){
 'use strict';
 
 var _objectAssign = require('object-assign');
@@ -34335,7 +34477,7 @@ if (!Object.assign) {
 // https://github.com/sindresorhus/object-assign
 // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
 
-},{"object-assign":5}],166:[function(require,module,exports){
+},{"object-assign":5}],167:[function(require,module,exports){
 'use strict';
 
 require('./Object.assign');
@@ -34360,7 +34502,7 @@ if (!window.Uint16Array) {
     window.Uint16Array = Array;
 }
 
-},{"./Math.sign":164,"./Object.assign":165,"./requestAnimationFrame":167}],167:[function(require,module,exports){
+},{"./Math.sign":165,"./Object.assign":166,"./requestAnimationFrame":168}],168:[function(require,module,exports){
 (function (global){
 'use strict';
 
@@ -34440,7 +34582,7 @@ if (!global.cancelAnimationFrame) {
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 
-},{}],168:[function(require,module,exports){
+},{}],169:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -34765,7 +34907,7 @@ function findBaseTextures(item, queue) {
 
 core.CanvasRenderer.registerPlugin('prepare', CanvasPrepare);
 
-},{"../../core":61}],169:[function(require,module,exports){
+},{"../../core":61}],170:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -34790,7 +34932,7 @@ Object.defineProperty(exports, 'canvas', {
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-},{"./canvas/CanvasPrepare":168,"./webgl/WebGLPrepare":170}],170:[function(require,module,exports){
+},{"./canvas/CanvasPrepare":169,"./webgl/WebGLPrepare":171}],171:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -35118,12 +35260,24 @@ function findGraphics(item, queue) {
 
 core.WebGLRenderer.registerPlugin('prepare', WebGLPrepare);
 
-},{"../../core":61}],171:[function(require,module,exports){
+},{"../../core":61}],172:[function(require,module,exports){
 (function (global){
 'use strict';
 
 exports.__esModule = true;
 exports.loader = exports.prepare = exports.particles = exports.mesh = exports.loaders = exports.interaction = exports.filters = exports.extras = exports.extract = exports.accessibility = undefined;
+
+var _deprecation = require('./deprecation');
+
+Object.keys(_deprecation).forEach(function (key) {
+    if (key === "default" || key === "__esModule") return;
+    Object.defineProperty(exports, key, {
+        enumerable: true,
+        get: function get() {
+            return _deprecation[key];
+        }
+    });
+});
 
 var _core = require('./core');
 
@@ -35138,8 +35292,6 @@ Object.keys(_core).forEach(function (key) {
 });
 
 require('./polyfill');
-
-require('./deprecation');
 
 var _accessibility = require('./accessibility');
 
@@ -35179,8 +35331,7 @@ var prepare = _interopRequireWildcard(_prepare);
 
 function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj; } else { var newObj = {}; if (obj != null) { for (var key in obj) { if (Object.prototype.hasOwnProperty.call(obj, key)) newObj[key] = obj[key]; } } newObj.default = obj; return newObj; } }
 
-// export lib
-// import polyfills first
+// import polyfills
 exports.accessibility = accessibility;
 exports.extract = extract;
 exports.extras = extras;
@@ -35200,7 +35351,10 @@ exports.prepare = prepare;
  */
 
 
-// Mixin the deprecations
+// export libs
+
+
+// export core
 
 var loader = new loaders.Loader();
 
@@ -35212,7 +35366,7 @@ global.PIXI = exports; // eslint-disable-line
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 
-},{"./accessibility":40,"./core":61,"./deprecation":118,"./extract":120,"./extras":129,"./filters":140,"./interaction":146,"./loaders":149,"./mesh":157,"./particles":160,"./polyfill":166,"./prepare":169}]},{},[171])(171)
+},{"./accessibility":40,"./core":61,"./deprecation":118,"./extract":120,"./extras":129,"./filters":140,"./interaction":146,"./loaders":149,"./mesh":158,"./particles":161,"./polyfill":167,"./prepare":170}]},{},[172])(172)
 });
 
 
