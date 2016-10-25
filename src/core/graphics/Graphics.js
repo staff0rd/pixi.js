@@ -944,18 +944,48 @@ export default class Graphics extends Container
                 {
                     // POLY
                     const points = shape.points;
-                    const lineWidthHalf = lineWidth / 2;
 
-                    for (let j = 0; j < points.length; j += 2)
+                    let x2 = 0;
+                    let y2 = 0;
+                    let theta = 0;
+                    let rw = 0;
+                    let rh = 0;
+                    let cx = 0;
+                    let cy = 0;
+
+                    for (let j = 0; j + 2 < points.length; j += 2)
                     {
                         x = points[j];
                         y = points[j + 1];
+                        x2 = points[j + 2];
+                        y2 = points[j + 3];
+                        h = lineWidth;
+                        w = Math.sqrt(Math.pow(x2 - x, 2) + Math.pow(y2 - y, 2));
 
-                        minX = x - lineWidthHalf < minX ? x - lineWidthHalf : minX;
-                        maxX = x + lineWidthHalf > maxX ? x + lineWidthHalf : maxX;
+                        if (y2 - y === 0)
+                        {
+                            theta = x > x2 ? Math.PI : 0;
+                        }
+                        else if (x2 - x === 0)
+                        {
+                            theta = (y > y2) ? -Math.PI / 2 : Math.PI / 2;
+                        }
+                        else
+                        {
+                            theta = (x2 - x) / (y2 - y);
+                        }
 
-                        minY = y - lineWidthHalf < minY ? y - lineWidthHalf : minY;
-                        maxY = y + lineWidthHalf > maxY ? y + lineWidthHalf : maxY;
+                        rw = Math.abs((h * Math.sin(theta)) + (w * Math.cos(theta))) / 2;
+                        rh = Math.abs((w * Math.sin(theta)) + (h * Math.cos(theta))) / 2;
+                        cx = (x2 + x) / 2;
+                        cy = (y2 + y) / 2;
+
+                        minX = cx - rw < minX ? cx - rw : minX;
+                        maxX = cx + rw > maxX ? cx + rw : maxX;
+
+                        minY = cy - rh < minY ? cy - rh : minY;
+                        maxY = cy + rh > maxY ? cy + rh : maxY;
+
                     }
                 }
             }
