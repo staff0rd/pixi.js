@@ -944,17 +944,18 @@ export default class Graphics extends Container
                 {
                     // POLY
                     const points = shape.points;
+                    const lineWidthHalf = lineWidth / 2;
 
                     for (let j = 0; j < points.length; j += 2)
                     {
                         x = points[j];
                         y = points[j + 1];
 
-                        minX = x - lineWidth < minX ? x - lineWidth : minX;
-                        maxX = x + lineWidth > maxX ? x + lineWidth : maxX;
+                        minX = x - lineWidthHalf < minX ? x - lineWidthHalf : minX;
+                        maxX = x + lineWidthHalf > maxX ? x + lineWidthHalf : maxX;
 
-                        minY = y - lineWidth < minY ? y - lineWidth : minY;
-                        maxY = y + lineWidth > maxY ? y + lineWidth : maxY;
+                        minY = y - lineWidthHalf < minY ? y - lineWidthHalf : minY;
+                        maxY = y + lineWidthHalf > maxY ? y + lineWidthHalf : maxY;
                     }
                 }
             }
