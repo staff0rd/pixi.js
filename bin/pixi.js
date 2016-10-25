@@ -1,6 +1,6 @@
 /*!
  * pixi.js - v4.1.0
- * Compiled Wed Oct 26 2016 00:15:02 GMT+1100 (AUS Eastern Daylight Time)
+ * Compiled Wed Oct 26 2016 00:26:14 GMT+1100 (AUS Eastern Daylight Time)
  *
  * pixi.js is licensed under the MIT License.
  * http://www.opensource.org/licenses/mit-license
@@ -10883,6 +10883,10 @@ var Graphics = function (_Container) {
                 } else {
                     // POLY
                     var points = shape.points;
+                    var rw = 0;
+                    var rh = 0;
+                    var cx = 0;
+                    var cy = 0;
 
                     for (var j = 0; j + 2 < points.length; j += 2) {
                         x = points[j];
@@ -10900,15 +10904,22 @@ var Graphics = function (_Container) {
                         } else {
                             theta = (x2 - x) / (y2 - y);
                         }
-                        var rw = (w * Math.sin(theta) + h * Math.cos(theta)) / 2;
-                        var rh = (h * Math.sin(theta) + w * Math.cos(theta)) / 2;
-                        var cx = (x2 - x) / 2;
-                        var cy = (y2 - y) / 2;
 
-                        minX = cx - rw;
-                        maxX = cx + rw;
-                        minY = cy - rh;
-                        maxY = cy + rh;
+                        rw = (w * Math.sin(theta) + h * Math.cos(theta)) / 2;
+                        rh = (h * Math.sin(theta) + w * Math.cos(theta)) / 2;
+                        cx = (x2 - x) / 2;
+                        cy = (y2 - y) / 2;
+
+                        // minX = cx - rw;
+                        // maxX = cx + rw;
+                        // minY = cy - rh;
+                        // maxY = cy + rh;
+
+                        minX = cx - rw < minX ? cx - rw : minX;
+                        maxX = cx + rw > maxX ? cx + rw : maxX;
+
+                        minY = cy - rh < minY ? cy - rh : minY;
+                        maxY = cy + rh > maxY ? cy + rh : maxY;
                     }
                 }
             }
