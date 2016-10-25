@@ -985,7 +985,6 @@ export default class Graphics extends Container
 
                         minY = cy - rh < minY ? cy - rh : minY;
                         maxY = cy + rh > maxY ? cy + rh : maxY;
-
                     }
                 }
             }
