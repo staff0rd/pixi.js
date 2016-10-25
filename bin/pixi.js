@@ -1,6 +1,6 @@
 /*!
  * pixi.js - v4.1.0
- * Compiled Wed Oct 26 2016 00:51:20 GMT+1100 (AUS Eastern Daylight Time)
+ * Compiled Wed Oct 26 2016 01:34:17 GMT+1100 (AUS Eastern Daylight Time)
  *
  * pixi.js is licensed under the MIT License.
  * http://www.opensource.org/licenses/mit-license
@@ -10905,8 +10905,8 @@ var Graphics = function (_Container) {
 
                         rw = (h * Math.sin(theta) + w * Math.cos(theta)) / 2;
                         rh = (w * Math.sin(theta) + h * Math.cos(theta)) / 2;
-                        cx = (x2 - x) / 2;
-                        cy = (y2 - y) / 2;
+                        cx = (x2 + x) / 2;
+                        cy = (y2 + y) / 2;
 
                         minX = cx - rw < minX ? cx - rw : minX;
                         maxX = cx + rw > maxX ? cx + rw : maxX;
