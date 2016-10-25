@@ -1,6 +1,6 @@
 /*!
  * pixi.js - v4.1.0
- * Compiled Tue Oct 25 2016 22:53:11 GMT+1100 (AUS Eastern Daylight Time)
+ * Compiled Wed Oct 26 2016 00:15:02 GMT+1100 (AUS Eastern Daylight Time)
  *
  * pixi.js is licensed under the MIT License.
  * http://www.opensource.org/licenses/mit-license
@@ -10834,8 +10834,11 @@ var Graphics = function (_Container) {
             var shape = 0;
             var x = 0;
             var y = 0;
+            var x2 = 0;
+            var y2 = 0;
             var w = 0;
             var h = 0;
+            var theta = 0;
 
             for (var i = 0; i < this.graphicsData.length; i++) {
                 var data = this.graphicsData[i];
@@ -10880,17 +10883,32 @@ var Graphics = function (_Container) {
                 } else {
                     // POLY
                     var points = shape.points;
-                    var lineWidthHalf = lineWidth / 2;
 
-                    for (var j = 0; j < points.length; j += 2) {
+                    for (var j = 0; j + 2 < points.length; j += 2) {
                         x = points[j];
                         y = points[j + 1];
+                        x2 = points[j + 2];
+                        y2 = points[j + 3];
+                        h = lineWidth;
+                        w = Math.sqrt(Math.pow(x2 - x, 2) + Math.pow(y2 - y, 2));
+                        if (y2 - y == 0) {
+                            if (x > x2) {
+                                theta = Math.PI;
+                            } else {
+                                theta = 0;
+                            }
+                        } else {
+                            theta = (x2 - x) / (y2 - y);
+                        }
+                        var rw = (w * Math.sin(theta) + h * Math.cos(theta)) / 2;
+                        var rh = (h * Math.sin(theta) + w * Math.cos(theta)) / 2;
+                        var cx = (x2 - x) / 2;
+                        var cy = (y2 - y) / 2;
 
-                        minX = x - lineWidthHalf < minX ? x - lineWidthHalf : minX;
-                        maxX = x + lineWidthHalf > maxX ? x + lineWidthHalf : maxX;
-
-                        minY = y - lineWidthHalf < minY ? y - lineWidthHalf : minY;
-                        maxY = y + lineWidthHalf > maxY ? y + lineWidthHalf : maxY;
+                        minX = cx - rw;
+                        maxX = cx + rw;
+                        minY = cy - rh;
+                        maxY = cy + rh;
                     }
                 }
             }
