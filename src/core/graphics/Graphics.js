@@ -480,7 +480,7 @@ export default class Graphics extends Container
             startAngle += Math.PI * 2;
         }
 
-        const sweep = anticlockwise ? (startAngle - endAngle) * -1 : (endAngle - startAngle);
+        const sweep = endAngle - startAngle;
         const segs = Math.ceil(Math.abs(sweep) / (Math.PI * 2)) * 40;
 
         if (sweep === 0)
@@ -493,14 +493,17 @@ export default class Graphics extends Container
 
         if (this.currentPath)
         {
-            this.currentPath.shape.points.push(startX, startY);
+            const points = this.currentPath.shape.points;
+
+            if (points[points.length - 2] !== startX || points[points.length - 1] !== startY)
+            {
+                points.push(startX, startY);
+            }
         }
         else
         {
             this.moveTo(startX, startY);
         }
-
-        const points = this.currentPath.shape.points;
 
         const theta = sweep / (segs * 2);
         const theta2 = theta * 2;
@@ -521,7 +524,7 @@ export default class Graphics extends Container
             const c = Math.cos(angle);
             const s = -Math.sin(angle);
 
-            points.push(
+            this.currentPath.shape.points.push(
                 (((cTheta * c) + (sTheta * s)) * radius) + cx,
                 (((cTheta * -s) + (sTheta * c)) * radius) + cy
             );
@@ -941,17 +944,41 @@ export default class Graphics extends Container
                 {
                     // POLY
                     const points = shape.points;
+                    let x2 = 0;
+                    let y2 = 0;
+                    let dx = 0;
+                    let dy = 0;
+                    let rw = 0;
+                    let rh = 0;
+                    let cx = 0;
+                    let cy = 0;
 
-                    for (let j = 0; j < points.length; j += 2)
+                    for (let j = 0; j + 2 < points.length; j += 2)
                     {
                         x = points[j];
                         y = points[j + 1];
+                        x2 = points[j + 2];
+                        y2 = points[j + 3];
+                        dx = Math.abs(x2 - x);
+                        dy = Math.abs(y2 - y);
+                        h = lineWidth;
+                        w = Math.sqrt((dx * dx) + (dy * dy));
 
-                        minX = x - lineWidth < minX ? x - lineWidth : minX;
-                        maxX = x + lineWidth > maxX ? x + lineWidth : maxX;
+                        if (w < 1e-9)
+                        {
+                            continue;
+                        }
 
-                        minY = y - lineWidth < minY ? y - lineWidth : minY;
-                        maxY = y + lineWidth > maxY ? y + lineWidth : maxY;
+                        rw = ((h / w * dy) + dx) / 2;
+                        rh = ((h / w * dx) + dy) / 2;
+                        cx = (x2 + x) / 2;
+                        cy = (y2 + y) / 2;
+
+                        minX = cx - rw < minX ? cx - rw : minX;
+                        maxX = cx + rw > maxX ? cx + rw : maxX;
+
+                        minY = cy - rh < minY ? cy - rh : minY;
+                        maxY = cy + rh > maxY ? cy + rh : maxY;
                     }
                 }
             }

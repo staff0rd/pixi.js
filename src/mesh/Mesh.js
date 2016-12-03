@@ -36,9 +36,9 @@ export default class Mesh extends core.Container
          * @member {Float32Array}
          */
         this.uvs = uvs || new Float32Array([0, 0,
-                1, 0,
-                1, 1,
-                0, 1]);
+            1, 0,
+            1, 1,
+            0, 1]);
 
         /**
          * An array of vertices
@@ -46,9 +46,9 @@ export default class Mesh extends core.Container
          * @member {Float32Array}
          */
         this.vertices = vertices || new Float32Array([0, 0,
-                100, 0,
-                100, 100,
-                0, 100]);
+            100, 0,
+            100, 100,
+            0, 100]);
 
         /*
          * @member {Uint16Array} An array containing the indices of the vertices
@@ -115,7 +115,13 @@ export default class Mesh extends core.Container
          */
         this.tintRgb = new Float32Array([1, 1, 1]);
 
-        this._glDatas = [];
+        /**
+         * A map of renderer IDs to webgl render data
+         *
+         * @private
+         * @member {object<number, object>}
+         */
+        this._glDatas = {};
     }
 
     /**
