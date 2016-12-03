@@ -26,7 +26,6 @@ docs/
 examples_old/
 coverage/
 lib/
-dist/
 
 # jetBrains IDE ignores
 .idea
