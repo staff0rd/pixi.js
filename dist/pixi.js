@@ -1,6 +1,6 @@
 /*!
  * pixi.js - v4.3.2
- * Compiled Tue, 10 Jan 2017 12:48:31 UTC
+ * Compiled Tue, 10 Jan 2017 12:54:33 UTC
  *
  * pixi.js is licensed under the MIT License.
  * http://www.opensource.org/licenses/mit-license
@@ -21853,7 +21853,7 @@ var Text = function (_Sprite) {
 
     Text.prototype.updateTexture = function updateTexture() {
         if (this.trim) {
-            var trimmed = this.trim(this.canvas);
+            var trimmed = this.getTrimmed(this.canvas);
 
             this.canvas.width = trimmed.trimWidth;
             this.canvas.height = trimmed.trimHeight;
