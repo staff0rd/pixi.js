@@ -59,7 +59,7 @@ class MockPointer {
     {
         this.setPosition(x, y);
         this.render();
-        this.interaction.onMouseDown({ clientX: 0, clientY: 0, preventDefault: sinon.stub() });
+        this.interaction.onPointerDown({ type: 'mousedown', clientX: 0, clientY: 0, preventDefault: sinon.stub() });
     }
 
     /**
@@ -70,7 +70,7 @@ class MockPointer {
     {
         this.setPosition(x, y);
         this.render();
-        this.interaction.onMouseUp({ clientX: 0, clientY: 0, preventDefault: sinon.stub() });
+        this.interaction.onPointerUp({ type: 'mouseup', clientX: 0, clientY: 0, preventDefault: sinon.stub() });
     }
 
     /**
@@ -91,7 +91,8 @@ class MockPointer {
     {
         this.setPosition(x, y);
         this.render();
-        this.interaction.onTouchStart({
+        this.interaction.onPointerDown({
+            type: 'touchstart',
             preventDefault: sinon.stub(),
             changedTouches: [new Touch({ identifier: 0, target: this.renderer.view })],
         });
@@ -105,7 +106,8 @@ class MockPointer {
     {
         this.setPosition(x, y);
         this.render();
-        this.interaction.onTouchEnd({
+        this.interaction.onPointerUp({
+            type: 'touchend',
             preventDefault: sinon.stub(),
             changedTouches: [new Touch({ identifier: 0, target: this.renderer.view })],
         });
