@@ -496,6 +496,8 @@ export default class Graphics extends Container
 
         if (points)
         {
+            const points = this.currentPath.shape.points;
+
             if (points[points.length - 2] !== startX || points[points.length - 1] !== startY)
             {
                 points.push(startX, startY);
@@ -526,7 +528,7 @@ export default class Graphics extends Container
             const c = Math.cos(angle);
             const s = -Math.sin(angle);
 
-            points.push(
+            this.currentPath.shape.points.push(
                 (((cTheta * c) + (sTheta * s)) * radius) + cx,
                 (((cTheta * -s) + (sTheta * c)) * radius) + cy
             );
