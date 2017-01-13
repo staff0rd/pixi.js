@@ -1,7 +1,9 @@
 'use strict';
 
 /* eslint-disable global-require */
-require('../bin/pixi');
+require('../dist/pixi');
+
+PIXI.utils.skipHello(); // hide banner
 
 describe('PIXI', function ()
 {
@@ -11,4 +13,7 @@ describe('PIXI', function ()
     });
     require('./core');
     require('./interaction');
+    require('./loaders');
+    require('./renders');
+    require('./prepare');
 });

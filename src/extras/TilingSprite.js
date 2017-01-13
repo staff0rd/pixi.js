@@ -61,6 +61,23 @@ export default class TilingSprite extends core.Sprite
          * @member {PIXI.extras.TextureTransform}
          */
         this.uvTransform = texture.transform || new TextureTransform(texture);
+
+        /**
+         * Plugin that is responsible for rendering this element.
+         * Allows to customize the rendering process without overriding '_renderWebGL' method.
+         *
+         * @member {string}
+         * @default 'tilingSprite'
+         */
+        this.pluginName = 'tilingSprite';
+
+        /**
+         * Whether or not anchor affects uvs
+         *
+         * @member {boolean}
+         * @default false
+         */
+        this.uvRespectAnchor = false;
     }
     /**
      * Changes frame clamping in corresponding textureTransform, shortcut
@@ -68,19 +85,13 @@ export default class TilingSprite extends core.Sprite
      *
      * @default 0.5
      * @member {number}
-     * @memberof PIXI.TilingSprite
      */
     get clampMargin()
     {
         return this.uvTransform.clampMargin;
     }
 
-    /**
-     * setter for clampMargin
-     *
-     * @param {number} value assigned value
-     */
-    set clampMargin(value)
+    set clampMargin(value) // eslint-disable-line require-jsdoc
     {
         this.uvTransform.clampMargin = value;
         this.uvTransform.update(true);
@@ -90,19 +101,13 @@ export default class TilingSprite extends core.Sprite
      * The scaling of the image that is being tiled
      *
      * @member {PIXI.ObservablePoint}
-     * @memberof PIXI.DisplayObject#
      */
     get tileScale()
     {
         return this.tileTransform.scale;
     }
 
-    /**
-     * Copies the point to the scale of the tiled image.
-     *
-     * @param {PIXI.Point|PIXI.ObservablePoint} value - The value to set to.
-     */
-    set tileScale(value)
+    set tileScale(value) // eslint-disable-line require-jsdoc
     {
         this.tileTransform.scale.copy(value);
     }
@@ -111,19 +116,13 @@ export default class TilingSprite extends core.Sprite
      * The offset of the image that is being tiled
      *
      * @member {PIXI.ObservablePoint}
-     * @memberof PIXI.TilingSprite#
      */
     get tilePosition()
     {
         return this.tileTransform.position;
     }
 
-    /**
-     * Copies the point to the position of the tiled image.
-     *
-     * @param {PIXI.Point|PIXI.ObservablePoint} value - The value to set to.
-     */
-    set tilePosition(value)
+    set tilePosition(value) // eslint-disable-line require-jsdoc
     {
         this.tileTransform.position.copy(value);
     }
@@ -158,8 +157,8 @@ export default class TilingSprite extends core.Sprite
         this.tileTransform.updateLocalTransform();
         this.uvTransform.update();
 
-        renderer.setObjectRenderer(renderer.plugins.tilingSprite);
-        renderer.plugins.tilingSprite.render(this);
+        renderer.setObjectRenderer(renderer.plugins[this.pluginName]);
+        renderer.plugins[this.pluginName].render(this);
     }
 
     /**
@@ -181,6 +180,7 @@ export default class TilingSprite extends core.Sprite
         const transform = this.worldTransform;
         const resolution = renderer.resolution;
         const baseTexture = texture.baseTexture;
+        const baseTextureResolution = texture.baseTexture.resolution;
         const modX = (this.tilePosition.x / this.tileScale.x) % texture._frame.width;
         const modY = (this.tilePosition.y / this.tileScale.y) % texture._frame.height;
 
@@ -189,7 +189,9 @@ export default class TilingSprite extends core.Sprite
         if (!this._canvasPattern)
         {
             // cut an object from a spritesheet..
-            const tempCanvas = new core.CanvasRenderTarget(texture._frame.width, texture._frame.height);
+            const tempCanvas = new core.CanvasRenderTarget(texture._frame.width,
+                                                        texture._frame.height,
+                                                        baseTextureResolution);
 
             // Tint the tiling sprite
             if (this.tint !== 0xFFFFFF)
@@ -219,25 +221,34 @@ export default class TilingSprite extends core.Sprite
                            transform.ty * resolution);
 
         // TODO - this should be rolled into the setTransform above..
-        context.scale(this.tileScale.x, this.tileScale.y);
+        context.scale(this.tileScale.x / baseTextureResolution, this.tileScale.y / baseTextureResolution);
 
         context.translate(modX + (this.anchor.x * -this._width),
                           modY + (this.anchor.y * -this._height));
 
-        // check blend mode
-        const compositeOperation = renderer.blendModes[this.blendMode];
-
-        if (compositeOperation !== renderer.context.globalCompositeOperation)
-        {
-            context.globalCompositeOperation = compositeOperation;
-        }
+        renderer.setBlendMode(this.blendMode);
 
         // fill the pattern!
         context.fillStyle = this._canvasPattern;
         context.fillRect(-modX,
                          -modY,
-                         this._width / this.tileScale.x,
-                         this._height / this.tileScale.y);
+                         this._width / this.tileScale.x * baseTextureResolution,
+                         this._height / this.tileScale.y * baseTextureResolution);
+    }
+
+    /**
+     * Updates the bounds of the tiling sprite.
+     *
+     * @private
+     */
+    _calculateBounds()
+    {
+        const minX = this._width * -this._anchor._x;
+        const minY = this._height * -this._anchor._y;
+        const maxX = this._width * (1 - this._anchor._x);
+        const maxY = this._height * (1 - this._anchor._y);
+
+        this._bounds.addFrame(this.transform, minX, minY, maxX, maxY);
     }
 
     /**
@@ -251,10 +262,10 @@ export default class TilingSprite extends core.Sprite
         // we can do a fast local bounds if the sprite has no children!
         if (this.children.length === 0)
         {
-            this._bounds.minX = -this._width * this.anchor._x;
-            this._bounds.minY = -this._height * this.anchor._y;
-            this._bounds.maxX = this._width;
-            this._bounds.maxY = this._height;
+            this._bounds.minX = this._width * -this._anchor._x;
+            this._bounds.minY = this._height * -this._anchor._y;
+            this._bounds.maxX = this._width * (1 - this._anchor._x);
+            this._bounds.maxY = this._height * (1 - this._anchor._x);
 
             if (!rect)
             {
@@ -273,82 +284,6 @@ export default class TilingSprite extends core.Sprite
     }
 
     /**
-     * Returns the framing rectangle of the sprite as a Rectangle object
-    *
-     * @return {PIXI.Rectangle} the framing rectangle
-     */
-    getBounds()
-    {
-        const width = this._width;
-        const height = this._height;
-
-        const w0 = width * (1 - this.anchor.x);
-        const w1 = width * -this.anchor.x;
-
-        const h0 = height * (1 - this.anchor.y);
-        const h1 = height * -this.anchor.y;
-
-        const worldTransform = this.worldTransform;
-
-        const a = worldTransform.a;
-        const b = worldTransform.b;
-        const c = worldTransform.c;
-        const d = worldTransform.d;
-        const tx = worldTransform.tx;
-        const ty = worldTransform.ty;
-
-        const x1 = (a * w1) + (c * h1) + tx;
-        const y1 = (d * h1) + (b * w1) + ty;
-
-        const x2 = (a * w0) + (c * h1) + tx;
-        const y2 = (d * h1) + (b * w0) + ty;
-
-        const x3 = (a * w0) + (c * h0) + tx;
-        const y3 = (d * h0) + (b * w0) + ty;
-
-        const x4 =  (a * w1) + (c * h0) + tx;
-        const y4 =  (d * h0) + (b * w1) + ty;
-
-        let minX = 0;
-        let maxX = 0;
-        let minY = 0;
-        let maxY = 0;
-
-        minX = x1;
-        minX = x2 < minX ? x2 : minX;
-        minX = x3 < minX ? x3 : minX;
-        minX = x4 < minX ? x4 : minX;
-
-        minY = y1;
-        minY = y2 < minY ? y2 : minY;
-        minY = y3 < minY ? y3 : minY;
-        minY = y4 < minY ? y4 : minY;
-
-        maxX = x1;
-        maxX = x2 > maxX ? x2 : maxX;
-        maxX = x3 > maxX ? x3 : maxX;
-        maxX = x4 > maxX ? x4 : maxX;
-
-        maxY = y1;
-        maxY = y2 > maxY ? y2 : maxY;
-        maxY = y3 > maxY ? y3 : maxY;
-        maxY = y4 > maxY ? y4 : maxY;
-
-        const bounds = this._bounds;
-
-        bounds.x = minX;
-        bounds.width = maxX - minX;
-
-        bounds.y = minY;
-        bounds.height = maxY - minY;
-
-        // store a reference so that if this function gets called again in the render cycle we do not have to recalculate
-        this._currentBounds = bounds;
-
-        return bounds;
-    }
-
-    /**
      * Checks if a point is inside this tiling sprite.
      *
      * @param {PIXI.Point} point - the point to check
@@ -360,11 +295,11 @@ export default class TilingSprite extends core.Sprite
 
         const width = this._width;
         const height = this._height;
-        const x1 = -width * this.anchor.x;
+        const x1 = -width * this.anchor._x;
 
         if (tempPoint.x > x1 && tempPoint.x < x1 + width)
         {
-            const y1 = -height * this.anchor.y;
+            const y1 = -height * this.anchor._y;
 
             if (tempPoint.y > y1 && tempPoint.y < y1 + height)
             {
@@ -383,8 +318,8 @@ export default class TilingSprite extends core.Sprite
     {
         super.destroy();
 
-        this.tileScale = null;
-        this.tilePosition = null;
+        this.tileTransform = null;
+        this.uvTransform = null;
     }
 
     /**
@@ -433,7 +368,7 @@ export default class TilingSprite extends core.Sprite
      * @param {number} width - the width of the tiling sprite
      * @param {number} height - the height of the tiling sprite
      * @param {boolean} [crossorigin] - if you want to specify the cross-origin parameter
-     * @param {number} [scaleMode=PIXI.SCALE_MODES.DEFAULT] - if you want to specify the scale mode,
+     * @param {number} [scaleMode=PIXI.settings.SCALE_MODE] - if you want to specify the scale mode,
      *  see {@link PIXI.SCALE_MODES} for possible values
      * @return {PIXI.extras.TilingSprite} A new TilingSprite using a texture from the texture cache matching the image id
      */
@@ -446,19 +381,13 @@ export default class TilingSprite extends core.Sprite
      * The width of the sprite, setting this will actually modify the scale to achieve the value set
      *
      * @member {number}
-     * @memberof PIXI.extras.TilingSprite#
      */
     get width()
     {
         return this._width;
     }
 
-    /**
-     * Sets the width.
-     *
-     * @param {number} value - The value to set to.
-     */
-    set width(value)
+    set width(value) // eslint-disable-line require-jsdoc
     {
         this._width = value;
     }
@@ -467,19 +396,13 @@ export default class TilingSprite extends core.Sprite
      * The height of the TilingSprite, setting this will actually modify the scale to achieve the value set
      *
      * @member {number}
-     * @memberof PIXI.extras.TilingSprite#
      */
     get height()
     {
         return this._height;
     }
 
-    /**
-     * Sets the width.
-     *
-     * @param {number} value - The value to set to.
-     */
-    set height(value)
+    set height(value) // eslint-disable-line require-jsdoc
     {
         this._height = value;
     }

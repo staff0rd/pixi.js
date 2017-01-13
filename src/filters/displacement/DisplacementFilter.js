@@ -1,5 +1,6 @@
 import * as core from '../../core';
-const glslify = require('glslify'); // eslint-disable-line no-undef
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
 /**
  * The DisplacementFilter class uses the pixel values from the specified texture
@@ -26,9 +27,9 @@ export default class DisplacementFilter extends core.Filter
 
         super(
             // vertex shader
-            glslify('../fragments/default-filter-matrix.vert'),
+            readFileSync(join(__dirname, '../fragments/default-filter-matrix.vert'), 'utf8'),
             // fragment shader
-            glslify('./displacement.frag')
+            readFileSync(join(__dirname, './displacement.frag'), 'utf8')
         );
 
         this.maskSprite = sprite;
@@ -69,19 +70,13 @@ export default class DisplacementFilter extends core.Filter
      * The texture used for the displacement map. Must be power of 2 sized texture.
      *
      * @member {PIXI.Texture}
-     * @memberof PIXI.filters.DisplacementFilter#
      */
     get map()
     {
         return this.uniforms.mapSampler;
     }
 
-    /**
-     * Sets the texture to use for the displacement.
-     *
-     * @param {PIXI.Texture} value - The texture to set to.
-     */
-    set map(value)
+    set map(value) // eslint-disable-line require-jsdoc
     {
         this.uniforms.mapSampler = value;
     }

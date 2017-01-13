@@ -77,6 +77,15 @@ export default class Rope extends Mesh
             return;
         }
 
+        // if the number of points has changed we will need to recreate the arraybuffers
+        if (this.vertices.length / 4 !== points.length)
+        {
+            this.vertices = new Float32Array(points.length * 4);
+            this.uvs = new Float32Array(points.length * 4);
+            this.colors = new Float32Array(points.length * 2);
+            this.indices = new Uint16Array(points.length * 2);
+        }
+
         const uvs = this.uvs;
 
         const indices = this.indices;
@@ -84,12 +93,12 @@ export default class Rope extends Mesh
 
         const textureUvs = this._texture._uvs;
         const offset = new core.Point(textureUvs.x0, textureUvs.y0);
-        const factor = new core.Point(textureUvs.x2 - textureUvs.x0, textureUvs.y2 - textureUvs.y0);
+        const factor = new core.Point(textureUvs.x2 - textureUvs.x0, Number(textureUvs.y2 - textureUvs.y0));
 
         uvs[0] = 0 + offset.x;
         uvs[1] = 0 + offset.y;
         uvs[2] = 0 + offset.x;
-        uvs[3] = Number(factor.y) + offset.y;
+        uvs[3] = factor.y + offset.y;
 
         colors[0] = 1;
         colors[1] = 1;
@@ -109,7 +118,7 @@ export default class Rope extends Mesh
             uvs[index + 1] = 0 + offset.y;
 
             uvs[index + 2] = (amount * factor.x) + offset.x;
-            uvs[index + 3] = Number(factor.y) + offset.y;
+            uvs[index + 3] = factor.y + offset.y;
 
             index = i * 2;
             colors[index] = 1;
@@ -120,8 +129,9 @@ export default class Rope extends Mesh
             indices[index + 1] = index + 1;
         }
 
-        this.dirty = true;
-        this.indexDirty = true;
+        // ensure that the changes are uploaded
+        this.dirty++;
+        this.indexDirty++;
     }
 
     /**

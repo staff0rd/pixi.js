@@ -16,6 +16,8 @@ Object.assign(
  * if its interactive parameter is set to true
  * This manager also supports multitouch.
  *
+ * An instance of this class is automatically created by default, and can be found at renderer.plugins.interaction
+ *
  * @class
  * @extends EventEmitter
  * @memberof PIXI.interaction
@@ -43,6 +45,9 @@ export default class InteractionManager extends EventEmitter
 
         /**
          * Should default browser actions automatically be prevented.
+         * Does not apply to pointer events for backwards compatibility
+         * preventDefault on pointer events stops mouse events from firing
+         * Thus, for every pointer event, there will always be either a mouse of touch event alongside it.
          *
          * @member {boolean}
          * @default true
@@ -50,7 +55,7 @@ export default class InteractionManager extends EventEmitter
         this.autoPreventDefault = options.autoPreventDefault !== undefined ? options.autoPreventDefault : true;
 
         /**
-         * As this frequency increases the interaction events will be checked more often.
+         * Frequency in milliseconds that the mousemove, moveover & mouseout interaction events will be checked.
          *
          * @member {number}
          * @default 10
@@ -102,15 +107,15 @@ export default class InteractionManager extends EventEmitter
         this.interactionDOMElement = null;
 
         /**
-         * This property determins if mousemove and touchmove events are fired only when the cursror
+         * This property determines if mousemove and touchmove events are fired only when the cursor
          * is over the object.
          * Setting to true will make things work more in line with how the DOM verison works.
          * Setting to false can make things easier for things like dragging
          * It is currently set to false as this is how pixi used to work. This will be set to true in
          * future versions of pixi.
          *
-         * @private
          * @member {boolean}
+         * @default false
          */
         this.moveWhenInside = false;
 
@@ -511,19 +516,10 @@ export default class InteractionManager extends EventEmitter
             this.interactionDOMElement.style['touch-action'] = 'none';
         }
 
-        window.document.addEventListener('mousemove', this.onMouseMove, true);
-        this.interactionDOMElement.addEventListener('mousedown', this.onMouseDown, true);
-        this.interactionDOMElement.addEventListener('mouseout', this.onMouseOut, true);
-        this.interactionDOMElement.addEventListener('mouseover', this.onMouseOver, true);
-        window.addEventListener('mouseup', this.onMouseUp, true);
-
-        if (this.supportsTouchEvents)
-        {
-            this.interactionDOMElement.addEventListener('touchstart', this.onTouchStart, true);
-            this.interactionDOMElement.addEventListener('touchend', this.onTouchEnd, true);
-            this.interactionDOMElement.addEventListener('touchmove', this.onTouchMove, true);
-        }
-
+        /**
+         * These events are added first, so that if pointer events are normalised, they are fired
+         * in the same order as non-normalised events. ie. pointer event 1st, mouse / touch 2nd
+         */
         if (this.supportsPointerEvents)
         {
             window.document.addEventListener('pointermove', this.onPointerMove, true);
@@ -556,6 +552,19 @@ export default class InteractionManager extends EventEmitter
             }
         }
 
+        window.document.addEventListener('mousemove', this.onMouseMove, true);
+        this.interactionDOMElement.addEventListener('mousedown', this.onMouseDown, true);
+        this.interactionDOMElement.addEventListener('mouseout', this.onMouseOut, true);
+        this.interactionDOMElement.addEventListener('mouseover', this.onMouseOver, true);
+        window.addEventListener('mouseup', this.onMouseUp, true);
+
+        if (this.supportsTouchEvents)
+        {
+            this.interactionDOMElement.addEventListener('touchstart', this.onTouchStart, true);
+            this.interactionDOMElement.addEventListener('touchend', this.onTouchEnd, true);
+            this.interactionDOMElement.addEventListener('touchmove', this.onTouchMove, true);
+        }
+
         this.eventsAdded = true;
     }
 
@@ -581,19 +590,6 @@ export default class InteractionManager extends EventEmitter
         else if (this.supportsPointerEvents)
         {
             this.interactionDOMElement.style['touch-action'] = '';
-        }
-
-        window.document.removeEventListener('mousemove', this.onMouseMove, true);
-        this.interactionDOMElement.removeEventListener('mousedown', this.onMouseDown, true);
-        this.interactionDOMElement.removeEventListener('mouseout', this.onMouseOut, true);
-        this.interactionDOMElement.removeEventListener('mouseover', this.onMouseOver, true);
-        window.removeEventListener('mouseup', this.onMouseUp, true);
-
-        if (this.supportsTouchEvents)
-        {
-            this.interactionDOMElement.removeEventListener('touchstart', this.onTouchStart, true);
-            this.interactionDOMElement.removeEventListener('touchend', this.onTouchEnd, true);
-            this.interactionDOMElement.removeEventListener('touchmove', this.onTouchMove, true);
         }
 
         if (this.supportsPointerEvents)
@@ -626,6 +622,19 @@ export default class InteractionManager extends EventEmitter
                 this.interactionDOMElement.removeEventListener('mouseover', this.onPointerOver, true);
                 window.removeEventListener('mouseup', this.onPointerUp, true);
             }
+        }
+
+        window.document.removeEventListener('mousemove', this.onMouseMove, true);
+        this.interactionDOMElement.removeEventListener('mousedown', this.onMouseDown, true);
+        this.interactionDOMElement.removeEventListener('mouseout', this.onMouseOut, true);
+        this.interactionDOMElement.removeEventListener('mouseover', this.onMouseOver, true);
+        window.removeEventListener('mouseup', this.onMouseUp, true);
+
+        if (this.supportsTouchEvents)
+        {
+            this.interactionDOMElement.removeEventListener('touchstart', this.onTouchStart, true);
+            this.interactionDOMElement.removeEventListener('touchend', this.onTouchEnd, true);
+            this.interactionDOMElement.removeEventListener('touchmove', this.onTouchMove, true);
         }
 
         this.interactionDOMElement = null;
@@ -728,8 +737,10 @@ export default class InteractionManager extends EventEmitter
             rect = this.interactionDOMElement.getBoundingClientRect();
         }
 
-        point.x = ((x - rect.left) * (this.interactionDOMElement.width / rect.width)) / this.resolution;
-        point.y = ((y - rect.top) * (this.interactionDOMElement.height / rect.height)) / this.resolution;
+        const resolutionMultiplier = navigator.isCocoonJS ? this.resolution : (1.0 / this.resolution);
+
+        point.x = ((x - rect.left) * (this.interactionDOMElement.width / rect.width)) * resolutionMultiplier;
+        point.y = ((y - rect.top) * (this.interactionDOMElement.height / rect.height)) * resolutionMultiplier;
     }
 
     /**
@@ -739,7 +750,7 @@ export default class InteractionManager extends EventEmitter
      *
      * @param {PIXI.Point} point - the point that is tested for collision
      * @param {PIXI.Container|PIXI.Sprite|PIXI.extras.TilingSprite} displayObject - the displayObject
-     *  that will be hit test (recurcsivly crawls its children)
+     *  that will be hit test (recursively crawls its children)
      * @param {Function} [func] - the function that will be called on each interactive object. The
      *  displayObject and hit will be passed to the function
      * @param {boolean} [hitTest] - this indicates if the objects inside should be hit test against the point
@@ -797,8 +808,8 @@ export default class InteractionManager extends EventEmitter
 
         // ** FREE TIP **! If an object is not interactive or has no buttons in it
         // (such as a game scene!) set interactiveChildren to false for that displayObject.
-        // This will allow pixi to completly ignore and bypass checking the displayObjects children.
-        if (displayObject.interactiveChildren)
+        // This will allow pixi to completely ignore and bypass checking the displayObjects children.
+        if (displayObject.interactiveChildren && displayObject.children)
         {
             const children = displayObject.children;
 
@@ -806,7 +817,7 @@ export default class InteractionManager extends EventEmitter
             {
                 const child = children[i];
 
-                // time to get recursive.. if this function will return if somthing is hit..
+                // time to get recursive.. if this function will return if something is hit..
                 if (this.processInteractive(point, child, func, hitTest, interactiveParent))
                 {
                     // its a good idea to check if a child has lost its parent.
@@ -999,7 +1010,7 @@ export default class InteractionManager extends EventEmitter
             this.interactionDOMElement.style.cursor = this.cursor;
         }
 
-        // TODO BUG for parents ineractive object (border order issue)
+        // TODO BUG for parents interactive object (border order issue)
     }
 
     /**
@@ -1109,7 +1120,12 @@ export default class InteractionManager extends EventEmitter
         // Update internal pointer reference
         this.mapPositionToPoint(this.pointer.global, event.clientX, event.clientY);
 
-        if (this.autoPreventDefault)
+        /**
+         * No need to prevent default on natural pointer events, as there are no side effects
+         * Normalized events, however, may have the double mousedown/touchstart issue on the native android browser,
+         * so still need to be prevented.
+         */
+        if (this.autoPreventDefault && (this.normalizeMouseEvents || this.normalizeTouchEvents))
         {
             this.pointer.originalEvent.preventDefault();
         }

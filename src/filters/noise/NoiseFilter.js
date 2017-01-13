@@ -1,5 +1,6 @@
 import * as core from '../../core';
-const glslify = require('glslify'); // eslint-disable-line no-undef
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
 /**
  * @author Vico @vicocotea
@@ -22,9 +23,9 @@ export default class NoiseFilter extends core.Filter
     {
         super(
             // vertex shader
-            glslify('../fragments/default.vert'),
+            readFileSync(join(__dirname, '../fragments/default.vert'), 'utf8'),
             // fragment shader
-            glslify('./noise.frag')
+            readFileSync(join(__dirname, './noise.frag'), 'utf8')
         );
 
         this.noise = 0.5;
@@ -34,7 +35,6 @@ export default class NoiseFilter extends core.Filter
      * The amount of noise to apply.
      *
      * @member {number}
-     * @memberof PIXI.filters.NoiseFilter#
      * @default 0.5
      */
     get noise()
@@ -42,12 +42,7 @@ export default class NoiseFilter extends core.Filter
         return this.uniforms.noise;
     }
 
-    /**
-     * Sets the amount of noise to apply.
-     *
-     * @param {number} value - The value to set to.
-     */
-    set noise(value)
+    set noise(value) // eslint-disable-line require-jsdoc
     {
         this.uniforms.noise = value;
     }

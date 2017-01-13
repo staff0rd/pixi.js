@@ -39,6 +39,13 @@ class Filter
         // currently this does not extract structs only default types
         this.uniformData = uniforms || extractUniformsFromSrc(this.vertexSrc, this.fragmentSrc, 'projectionMatrix|uSampler');
 
+        /**
+         * An object containing the current values of custom uniforms.
+         * @example <caption>Updating the value of a custom uniform</caption>
+         * filter.uniforms.time = performance.now();
+         *
+         * @member {object}
+         */
         this.uniforms = {};
 
         for (const i in this.uniformData)
@@ -48,7 +55,7 @@ class Filter
 
         // this is where we store shader references..
         // TODO we could cache this!
-        this.glShaders = [];
+        this.glShaders = {};
 
         // used for cacheing.. sure there is a better way!
         if (!SOURCE_KEY_MAP[this.vertexSrc + this.fragmentSrc])

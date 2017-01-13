@@ -61,11 +61,15 @@ export default class TextureManager
      * Updates and/or Creates a WebGL texture for the renderer's context.
      *
      * @param {PIXI.BaseTexture|PIXI.Texture} texture - the texture to update
+     * @param {Number} location - the location the texture will be bound to.
      * @return {GLTexture} The gl texture.
      */
-    updateTexture(texture)
+    updateTexture(texture, location)
     {
-        texture = texture.baseTexture || texture;
+        // assume it good!
+        // texture = texture.baseTexture || texture;
+
+        const gl = this.gl;
 
         const isRenderTexture = !!texture._glRenderTargets;
 
@@ -73,6 +77,31 @@ export default class TextureManager
         {
             return null;
         }
+
+        const boundTextures = this.renderer.boundTextures;
+
+        // if the location is undefined then this may have been called by n event.
+        // this being the case the texture may already be bound to a slot. As a texture can only be bound once
+        // we need to find its current location if it exists.
+        if (location === undefined)
+        {
+            location = 0;
+
+            // TODO maybe we can use texture bound ids later on...
+            // check if texture is already bound..
+            for (let i = 0; i < boundTextures.length; ++i)
+            {
+                if (boundTextures[i] === texture)
+                {
+                    location = i;
+                    break;
+                }
+            }
+        }
+
+        boundTextures[location] = texture;
+
+        gl.activeTexture(gl.TEXTURE0 + location);
 
         let glTexture = texture._glTextures[this.renderer.CONTEXT_UID];
 
@@ -94,7 +123,8 @@ export default class TextureManager
             }
             else
             {
-                glTexture = new GLTexture(this.gl);
+                glTexture = new GLTexture(this.gl, null, null, null, null);
+                glTexture.bind(location);
                 glTexture.premultiplyAlpha = true;
                 glTexture.upload(texture.source);
             }
@@ -140,7 +170,7 @@ export default class TextureManager
                 glTexture.enableLinearScaling();
             }
         }
-        // the textur ealrady exists so we only need to update it..
+        // the texture already exists so we only need to update it..
         else if (isRenderTexture)
         {
             texture._glRenderTargets[this.renderer.CONTEXT_UID].resize(texture.width, texture.height);
@@ -170,6 +200,8 @@ export default class TextureManager
 
         if (texture._glTextures[this.renderer.CONTEXT_UID])
         {
+            this.renderer.unbindTexture(texture);
+
             texture._glTextures[this.renderer.CONTEXT_UID].destroy();
             texture.off('update', this.updateTexture, this);
             texture.off('dispose', this.destroyTexture, this);

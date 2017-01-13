@@ -6,6 +6,8 @@ const BYTES_PER_PIXEL = 4;
 /**
  * The extract manager provides functionality to export content from the renderers.
  *
+ * An instance of this class is automatically created by default, and can be found at renderer.plugins.extract
+ *
  * @class
  * @memberof PIXI
  */
@@ -17,6 +19,13 @@ export default class WebGLExtract
     constructor(renderer)
     {
         this.renderer = renderer;
+        /**
+         * Collection of methods for extracting data (image, pixels, etc.) from a display object or render texture
+         *
+         * @member {PIXI.WebGLExtract} extract
+         * @memberof PIXI.WebGLRenderer#
+         * @see PIXI.WebGLExtract
+         */
         renderer.extract = this;
     }
 

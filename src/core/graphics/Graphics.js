@@ -480,7 +480,7 @@ export default class Graphics extends Container
             startAngle += Math.PI * 2;
         }
 
-        const sweep = anticlockwise ? (startAngle - endAngle) * -1 : (endAngle - startAngle);
+        const sweep = endAngle - startAngle;
         const segs = Math.ceil(Math.abs(sweep) / (Math.PI * 2)) * 40;
 
         if (sweep === 0)
@@ -491,16 +491,21 @@ export default class Graphics extends Container
         const startX = cx + (Math.cos(startAngle) * radius);
         const startY = cy + (Math.sin(startAngle) * radius);
 
-        if (this.currentPath)
+        // If the currentPath exists, take its points. Otherwise call `moveTo` to start a path.
+        let points = this.currentPath ? this.currentPath.shape.points : null;
+
+        if (points)
         {
-            this.currentPath.shape.points.push(startX, startY);
+            if (points[points.length - 2] !== startX || points[points.length - 1] !== startY)
+            {
+                points.push(startX, startY);
+            }
         }
         else
         {
             this.moveTo(startX, startY);
+            points = this.currentPath.shape.points;
         }
-
-        const points = this.currentPath.shape.points;
 
         const theta = sweep / (segs * 2);
         const theta2 = theta * 2;
@@ -688,10 +693,14 @@ export default class Graphics extends Container
             this.lineWidth = 0;
             this.filling = false;
 
+            this.boundsDirty = -1;
             this.dirty++;
             this.clearDirty++;
             this.graphicsData.length = 0;
         }
+
+        this.currentPath = null;
+        this._spriteRect = null;
 
         return this;
     }
@@ -827,7 +836,6 @@ export default class Graphics extends Container
             this.boundsDirty = this.dirty;
             this.updateLocalBounds();
 
-            this.dirty++;
             this.cachedSpriteDirty = true;
         }
 
@@ -941,17 +949,41 @@ export default class Graphics extends Container
                 {
                     // POLY
                     const points = shape.points;
+                    let x2 = 0;
+                    let y2 = 0;
+                    let dx = 0;
+                    let dy = 0;
+                    let rw = 0;
+                    let rh = 0;
+                    let cx = 0;
+                    let cy = 0;
 
-                    for (let j = 0; j < points.length; j += 2)
+                    for (let j = 0; j + 2 < points.length; j += 2)
                     {
                         x = points[j];
                         y = points[j + 1];
+                        x2 = points[j + 2];
+                        y2 = points[j + 3];
+                        dx = Math.abs(x2 - x);
+                        dy = Math.abs(y2 - y);
+                        h = lineWidth;
+                        w = Math.sqrt((dx * dx) + (dy * dy));
 
-                        minX = x - lineWidth < minX ? x - lineWidth : minX;
-                        maxX = x + lineWidth > maxX ? x + lineWidth : maxX;
+                        if (w < 1e-9)
+                        {
+                            continue;
+                        }
 
-                        minY = y - lineWidth < minY ? y - lineWidth : minY;
-                        maxY = y + lineWidth > maxY ? y + lineWidth : maxY;
+                        rw = ((h / w * dy) + dx) / 2;
+                        rh = ((h / w * dx) + dy) / 2;
+                        cx = (x2 + x) / 2;
+                        cy = (y2 + y) / 2;
+
+                        minX = cx - rw < minX ? cx - rw : minX;
+                        maxX = cx + rw > maxX ? cx + rw : maxX;
+
+                        minY = cy - rh < minY ? cy - rh : minY;
+                        maxY = cy + rh > maxY ? cy + rh : maxY;
                     }
                 }
             }
@@ -1089,6 +1121,10 @@ export default class Graphics extends Container
      *  options have been set to that value
      * @param {boolean} [options.children=false] - if set to true, all the children will have
      *  their destroy method called as well. 'options' will be passed on to those calls.
+     * @param {boolean} [options.texture=false] - Only used for child Sprites if options.children is set to true
+     *  Should it destroy the texture of the child sprite
+     * @param {boolean} [options.baseTexture=false] - Only used for child Sprites if options.children is set to true
+     *  Should it destroy the base texture of the child sprite
      */
     destroy(options)
     {

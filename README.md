@@ -20,13 +20,11 @@ as any breakthroughs will be posted up there too!
 
 **Your support helps us make Pixi.js even better. Make your pledge on [Patreon](https://www.patreon.com/user?u=2384552&ty=h&u=2384552) and we'll love you forever!**
 
-[![gallery](http://www.pixijs.com/wp-content/uploads/2013/05/headerPanel_projects-898x342.jpg)](http://www.pixijs.com/gallery/)
-
 ### What to Use Pixi.js for and When to Use It
 
 Pixi.js is a rendering library that will allow you to create rich, interactive graphics, cross platform applications, and games without having to dive into the WebGL API or deal with browser and device compatibility.
 
-Pixi.js has full [WebGL](https://en.wikipedia.org/wiki/WebGL) support and seamlessly falls back to HTML5's [canvas](https://en.wikipedia.org/wiki/Canvas_element) if needed. As a framework, Pixi.js is a fantastic tool for authoring interactive content, *especially with the move away from Adobe Flash in recent years*. Use it for your graphics rich, interactive websites, applications, and HTML5 games.  Out of the box cross-platform compatibility and graceful degredation mean you have less work to do and have more fun doing it! If you want to create polished and refined experiences relatively quickly, without delving into dense, low level code, all while avoiding the headaches of browser inconsistencies, then sprinkle your next project with some Pixi.js magic!
+Pixi.js has full [WebGL](https://en.wikipedia.org/wiki/WebGL) support and seamlessly falls back to HTML5's [canvas](https://en.wikipedia.org/wiki/Canvas_element) if needed. As a framework, Pixi.js is a fantastic tool for authoring interactive content, *especially with the move away from Adobe Flash in recent years*. Use it for your graphics rich, interactive websites, applications, and HTML5 games.  Out of the box cross-platform compatibility and graceful degradation mean you have less work to do and have more fun doing it! If you want to create polished and refined experiences relatively quickly, without delving into dense, low level code, all while avoiding the headaches of browser inconsistencies, then sprinkle your next project with some Pixi.js magic!
 
 **Boost your development and feel free to use your imagination!**
 
@@ -43,9 +41,19 @@ Pixi.js has full [WebGL](https://en.wikipedia.org/wiki/WebGL) support and seamle
 - Chat: You can join us on [Gitter](https://gitter.im/pixijs/pixi.js) To chat about Pixi. We also now have a Slack channel. If you would like to join it please Send me an email (mat@goodboydigital.com) and I will invite you in.
 
 
-### Installation ###
+### Setup ###
 
-Pixi.js can be installed with [Bower](https://bower.io/#getting-started), [NPM](https://docs.npmjs.com/getting-started/what-is-npm) or simply using a content delivery network (CDN) URL to embed Pixi.js directly on your HTML page. 
+It's easy to get started with Pixi.js! Simply grab the pre-built versions from here:
+
+Release Branch - Nice and stable Pixi.js
+- Unminified: [http://pixijs.download/release/pixi.js]
+- Minified: [http://pixijs.download/release/pixi.min.js]
+
+Develop Branch - The bleeding edge version of Pixi.js
+- Unminified: [http://pixijs.download/dev/pixi.js]
+- Minified: [http://pixijs.download/dev/pixi.min.js]
+
+Alternatively, Pixi.js can be installed with [Bower](https://bower.io/#getting-started), [npm](https://docs.npmjs.com/getting-started/what-is-npm) or simply using a content delivery network (CDN) URL to embed Pixi.js directly on your HTML page.
 
 #### Bower Install
 
@@ -62,11 +70,10 @@ $> npm install pixi.js
 #### CDN Install (via cdnjs)
 
 ```html
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/4.0.0/pixi.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/4.2.2/pixi.min.js"></script>
 ```
 
-_Note: `4.0.0` can be replaced by any [released](https://github.com/pixijs/pixi.js/releases) version._
-
+_Note: `4.2.2` can be replaced by any [released](https://github.com/pixijs/pixi.js/releases) version._
 
 ### Demos ###
 
@@ -118,48 +125,38 @@ before submitting changes.
 ### Basic Usage Example ###
 
 ```js
-// You can use either `new PIXI.WebGLRenderer`, `new PIXI.CanvasRenderer`, or `PIXI.autoDetectRenderer`
-// which will try to choose the best renderer for the environment you are in.
-var renderer = new PIXI.WebGLRenderer(800, 600);
+// The application will create a renderer using WebGL, if possible,
+// with a fallback to a canvas render. It will also setup the ticker
+// and the root stage PIXI.Container.
+var app = new PIXI.Application();
 
-// The renderer will create a canvas element for you that you can then insert into the DOM.
-document.body.appendChild(renderer.view);
-
-// You need to create a root container that will hold the scene you want to draw.
-var stage = new PIXI.Container();
-
-// Declare a global variable for our sprite so that the animate function can access it.
-var bunny = null;
+// The application will create a canvas element for you that you 
+// can then insert into the DOM.
+document.body.appendChild(app.view);
 
 // load the texture we need
-PIXI.loader.add('bunny', 'bunny.png').load(function (loader, resources) {
+PIXI.loader.add('bunny', 'bunny.png').load(function(loader, resources) {
+
     // This creates a texture from a 'bunny.png' image.
-    bunny = new PIXI.Sprite(resources.bunny.texture);
+    var bunny = new PIXI.Sprite(resources.bunny.texture);
 
-    // Setup the position and scale of the bunny
-    bunny.position.x = 400;
-    bunny.position.y = 300;
+    // Setup the position of the bunny
+    bunny.x = app.renderer.width / 2;
+    bunny.y = app.renderer.height / 2;
 
-    bunny.scale.x = 2;
-    bunny.scale.y = 2;
+    // Rotate around the center
+    bunny.anchor.x = 0.5;
+    bunny.anchor.y = 0.5;
 
     // Add the bunny to the scene we are building.
-    stage.addChild(bunny);
-
-    // kick off the animation loop (defined below)
-    animate();
+    app.stage.addChild(bunny);
+    
+    // Listen for frame updates
+    app.ticker.add(function() {
+         // each frame we spin the bunny around a bit
+        bunny.rotation += 0.01;
+    });
 });
-
-function animate() {
-    // start the timer for the next animation loop
-    requestAnimationFrame(animate);
-
-    // each frame we spin the bunny around a bit
-    bunny.rotation += 0.01;
-
-    // this is the main render call that makes pixi draw your container and its children.
-    renderer.render(stage);
-}
 ```
 
 ### How to build ###
@@ -168,7 +165,7 @@ Note that for most users you don't need to build this project. If all you want i
 just download one of our [prebuilt releases](https://github.com/pixijs/pixi.js/releases). Really
 the only time you should need to build pixi.js is if you are developing it.
 
-If you don't already have Node.js and NPM, go install them. Then, in the folder where you have cloned 
+If you don't already have Node.js and NPM, go install them. Then, in the folder where you have cloned
 the repository, install the build dependencies using npm:
 
 ```
@@ -178,22 +175,22 @@ $> npm install
 Then, to build the source, run:
 
 ```
-$> npm run build
+$> npm run dist
 ```
 
-This will create a minified version at `bin/pixi.min.js` and a non-minified version at `bin/pixi.js`
+This will create a minified version at `dist/pixi.min.js` and a non-minified version at `dist/pixi.js`
 with all the plugins in the pixi.js project.
 
 If there are specific plugins you don't want, say "interaction" or "extras", you can exclude those:
 
 ```
-$> npm run build -- --exclude extras --exclude interaction
+$> npm run dist -- --exclude extras --exclude interaction
 ```
 
 You can also use the short-form `-e`:
 
 ```
-$> npm run build -- -e extras -e interaction -e filters
+$> npm run dist -- -e extras -e interaction -e filters
 ```
 
 ### How to generate the documentation ###

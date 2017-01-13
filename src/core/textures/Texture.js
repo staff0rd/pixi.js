@@ -18,6 +18,15 @@ import { TextureCache, BaseTextureCache } from '../utils';
  * let sprite2 = new PIXI.Sprite(texture);
  * ```
  *
+ * Textures made from SVGs, loaded or not, cannot be used before the file finishes processing.
+ * You can check for this by checking the sprite's _textureID property.
+ * ```js
+ * var texture = PIXI.Texture.fromImage('assets/image.svg');
+ * var sprite1 = new PIXI.Sprite(texture);
+ * //sprite1._textureID should not be undefined if the texture has finished processing the SVG file
+ * ```
+ * You can use a ticker or rAF to ensure your sprites load the finished textures after processing. See issue #3068.
+ *
  * @class
  * @extends EventEmitter
  * @memberof PIXI
@@ -168,7 +177,7 @@ export default class Texture extends EventEmitter
     {
         this._updateID++;
 
-        // TODO this code looks confusing.. boo to abusing getters and setterss!
+        // TODO this code looks confusing.. boo to abusing getters and setters!
         if (this.noFrame)
         {
             this.frame = new Rectangle(0, 0, baseTexture.width, baseTexture.height);
@@ -210,7 +219,7 @@ export default class Texture extends EventEmitter
             if (destroyBase)
             {
                 // delete the texture if it exists in the texture cache..
-                // this only needs to be removed if the base texture is actually destoryed too..
+                // this only needs to be removed if the base texture is actually destroyed too..
                 if (TextureCache[this.baseTexture.imageUrl])
                 {
                     delete TextureCache[this.baseTexture.imageUrl];
@@ -270,7 +279,7 @@ export default class Texture extends EventEmitter
      * @static
      * @param {string} imageUrl - The image url of the texture
      * @param {boolean} [crossorigin] - Whether requests should be treated as crossorigin
-     * @param {number} [scaleMode=PIXI.SCALE_MODES.DEFAULT] - See {@link PIXI.SCALE_MODES} for possible values
+     * @param {number} [scaleMode=PIXI.settings.SCALE_MODE] - See {@link PIXI.SCALE_MODES} for possible values
      * @param {number} [sourceScale=(auto)] - Scale for the original image, used with SVG images.
      * @return {PIXI.Texture} The newly created texture
      */
@@ -312,7 +321,7 @@ export default class Texture extends EventEmitter
      *
      * @static
      * @param {HTMLCanvasElement} canvas - The canvas element source of the texture
-     * @param {number} [scaleMode=PIXI.SCALE_MODES.DEFAULT] - See {@link PIXI.SCALE_MODES} for possible values
+     * @param {number} [scaleMode=PIXI.settings.SCALE_MODE] - See {@link PIXI.SCALE_MODES} for possible values
      * @return {PIXI.Texture} The newly created texture
      */
     static fromCanvas(canvas, scaleMode)
@@ -325,7 +334,7 @@ export default class Texture extends EventEmitter
      *
      * @static
      * @param {HTMLVideoElement|string} video - The URL or actual element of the video
-     * @param {number} [scaleMode=PIXI.SCALE_MODES.DEFAULT] - See {@link PIXI.SCALE_MODES} for possible values
+     * @param {number} [scaleMode=PIXI.settings.SCALE_MODE] - See {@link PIXI.SCALE_MODES} for possible values
      * @return {PIXI.Texture} The newly created texture
      */
     static fromVideo(video, scaleMode)
@@ -343,7 +352,7 @@ export default class Texture extends EventEmitter
      *
      * @static
      * @param {string} videoUrl - URL of the video
-     * @param {number} [scaleMode=PIXI.SCALE_MODES.DEFAULT] - See {@link PIXI.SCALE_MODES} for possible values
+     * @param {number} [scaleMode=PIXI.settings.SCALE_MODE] - See {@link PIXI.SCALE_MODES} for possible values
      * @return {PIXI.Texture} The newly created texture
      */
     static fromVideoUrl(videoUrl, scaleMode)
@@ -353,7 +362,7 @@ export default class Texture extends EventEmitter
 
     /**
      * Helper function that creates a new Texture based on the source you provide.
-     * The soucre can be - frame id, image url, video url, canvae element, video element, base texture
+     * The source can be - frame id, image url, video url, canvas element, video element, base texture
      *
      * @static
      * @param {number|string|PIXI.BaseTexture|HTMLCanvasElement|HTMLVideoElement} source - Source to create texture from
@@ -382,6 +391,10 @@ export default class Texture extends EventEmitter
 
             return texture;
         }
+        else if (source instanceof HTMLImageElement)
+        {
+            return new Texture(new BaseTexture(source));
+        }
         else if (source instanceof HTMLCanvasElement)
         {
             return Texture.fromCanvas(source);
@@ -392,7 +405,7 @@ export default class Texture extends EventEmitter
         }
         else if (source instanceof BaseTexture)
         {
-            return new Texture(BaseTexture);
+            return new Texture(source);
         }
 
         // lets assume its a texture!
@@ -432,19 +445,13 @@ export default class Texture extends EventEmitter
      * The frame specifies the region of the base texture that this texture uses.
      *
      * @member {PIXI.Rectangle}
-     * @memberof PIXI.Texture#
      */
     get frame()
     {
         return this._frame;
     }
 
-    /**
-     * Set the frame.
-     *
-     * @param {Rectangle} frame - The new frame to set.
-     */
-    set frame(frame)
+    set frame(frame) // eslint-disable-line require-jsdoc
     {
         this._frame = frame;
 
@@ -483,12 +490,7 @@ export default class Texture extends EventEmitter
         return this._rotate;
     }
 
-    /**
-     * Set the rotation
-     *
-     * @param {number} rotate - The new rotation to set.
-     */
-    set rotate(rotate)
+    set rotate(rotate) // eslint-disable-line require-jsdoc
     {
         this._rotate = rotate;
         if (this.valid)
@@ -504,7 +506,7 @@ export default class Texture extends EventEmitter
      */
     get width()
     {
-        return this.orig ? this.orig.width : 0;
+        return this.orig.width;
     }
 
     /**
@@ -514,7 +516,7 @@ export default class Texture extends EventEmitter
      */
     get height()
     {
-        return this.orig ? this.orig.height : 0;
+        return this.orig.height;
     }
 }
 

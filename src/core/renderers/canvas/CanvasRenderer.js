@@ -4,6 +4,7 @@ import CanvasRenderTarget from './utils/CanvasRenderTarget';
 import mapCanvasBlendModesToPixi from './utils/mapCanvasBlendModesToPixi';
 import { pluginTarget } from '../../utils';
 import { RENDERER_TYPE, SCALE_MODES, BLEND_MODES } from '../../const';
+import settings from '../../settings';
 
 /**
  * The CanvasRenderer draws the scene and all its content onto a 2d canvas. This renderer should
@@ -120,6 +121,8 @@ export default class CanvasRenderer extends SystemRenderer
 
         this.emit('prerender');
 
+        const rootResolution = this.resolution;
+
         if (renderTexture)
         {
             renderTexture = renderTexture.baseTexture || renderTexture;
@@ -206,7 +209,31 @@ export default class CanvasRenderer extends SystemRenderer
         displayObject.renderCanvas(this);
         this.context = tempContext;
 
+        this.resolution = rootResolution;
+
         this.emit('postrender');
+    }
+
+    /**
+     * Clear the canvas of renderer.
+     *
+     * @param {string} [clearColor] - Clear the canvas with this color, except the canvas is transparent.
+     */
+    clear(clearColor)
+    {
+        const context = this.context;
+
+        clearColor = clearColor || this._backgroundColorString;
+
+        if (!this.transparent && clearColor)
+        {
+            context.fillStyle = clearColor;
+            context.fillRect(0, 0, this.width, this.height);
+        }
+        else
+        {
+            context.clearRect(0, 0, this.width, this.height);
+        }
     }
 
     /**
@@ -221,6 +248,7 @@ export default class CanvasRenderer extends SystemRenderer
             return;
         }
 
+        this._activeBlendMode = blendMode;
         this.context.globalCompositeOperation = this.blendModes[blendMode];
     }
 
@@ -262,7 +290,7 @@ export default class CanvasRenderer extends SystemRenderer
         // surely a browser bug?? Let pixi fix that for you..
         if (this.smoothProperty)
         {
-            this.rootContext[this.smoothProperty] = (SCALE_MODES.DEFAULT === SCALE_MODES.LINEAR);
+            this.rootContext[this.smoothProperty] = (settings.SCALE_MODE === SCALE_MODES.LINEAR);
         }
     }
 }

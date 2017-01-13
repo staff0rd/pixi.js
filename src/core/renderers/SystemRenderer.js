@@ -1,6 +1,7 @@
 import { sayHello, hex2string, hex2rgb } from '../utils';
 import { Matrix } from '../math';
-import { DEFAULT_RENDER_OPTIONS, RENDERER_TYPE } from '../const';
+import { RENDERER_TYPE } from '../const';
+import settings from '../settings';
 import Container from '../display/Container';
 import RenderTexture from '../textures/RenderTexture';
 import EventEmitter from 'eventemitter3';
@@ -45,17 +46,17 @@ export default class SystemRenderer extends EventEmitter
         // prepare options
         if (options)
         {
-            for (const i in DEFAULT_RENDER_OPTIONS)
+            for (const i in settings.RENDER_OPTIONS)
             {
                 if (typeof options[i] === 'undefined')
                 {
-                    options[i] = DEFAULT_RENDER_OPTIONS[i];
+                    options[i] = settings.RENDER_OPTIONS[i];
                 }
             }
         }
         else
         {
-            options = DEFAULT_RENDER_OPTIONS;
+            options = settings.RENDER_OPTIONS;
         }
 
         /**
@@ -96,7 +97,7 @@ export default class SystemRenderer extends EventEmitter
          * @member {number}
          * @default 1
          */
-        this.resolution = options.resolution;
+        this.resolution = options.resolution || settings.RESOLUTION;
 
         /**
          * Whether the render view is transparent
@@ -279,19 +280,13 @@ export default class SystemRenderer extends EventEmitter
      * The background color to fill if not transparent
      *
      * @member {number}
-     * @memberof PIXI.SystemRenderer#
      */
     get backgroundColor()
     {
         return this._backgroundColor;
     }
 
-    /**
-     * Sets the background color.
-     *
-     * @param {number} value - The value to set to.
-     */
-    set backgroundColor(value)
+    set backgroundColor(value) // eslint-disable-line require-jsdoc
     {
         this._backgroundColor = value;
         this._backgroundColorString = hex2string(value);

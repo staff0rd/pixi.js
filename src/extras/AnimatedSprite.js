@@ -8,7 +8,7 @@ import * as core from '../core';
  */
 
 /**
- * A MovieClip is a simple way to display an animation depicted by a list of textures.
+ * An AnimatedSprite is a simple way to display an animation depicted by a list of textures.
  *
  * ```js
  * let alienImages = ["image_sequence_01.png","image_sequence_02.png","image_sequence_03.png","image_sequence_04.png"];
@@ -20,14 +20,14 @@ import * as core from '../core';
  *      textureArray.push(texture);
  * };
  *
- * let mc = new PIXI.MovieClip(textureArray);
+ * let mc = new PIXI.AnimatedSprite(textureArray);
  * ```
  *
  * @class
  * @extends PIXI.Sprite
  * @memberof PIXI.extras
  */
-export default class MovieClip extends core.Sprite
+export default class AnimatedSprite extends core.Sprite
 {
     /**
      * @param {PIXI.Texture[]|FrameObject[]} textures - an array of {@link PIXI.Texture} or frame
@@ -50,7 +50,7 @@ export default class MovieClip extends core.Sprite
         this.textures = textures;
 
         /**
-         * The speed that the MovieClip will play at. Higher is faster, lower is slower
+         * The speed that the AnimatedSprite will play at. Higher is faster, lower is slower
          *
          * @member {number}
          * @default 1
@@ -58,7 +58,7 @@ export default class MovieClip extends core.Sprite
         this.animationSpeed = 1;
 
         /**
-         * Whether or not the movie clip repeats after playing.
+         * Whether or not the animate sprite repeats after playing.
          *
          * @member {boolean}
          * @default true
@@ -66,18 +66,16 @@ export default class MovieClip extends core.Sprite
         this.loop = true;
 
         /**
-         * Function to call when a MovieClip finishes playing
+         * Function to call when a AnimatedSprite finishes playing
          *
-         * @method
-         * @memberof PIXI.extras.MovieClip#
+         * @member {Function}
          */
         this.onComplete = null;
 
         /**
-         * Function to call when a MovieClip changes which texture is being rendered
+         * Function to call when a AnimatedSprite changes which texture is being rendered
          *
-         * @method
-         * @memberof PIXI.extras.MovieClip#
+         * @member {Function}
          */
         this.onFrameChange = null;
 
@@ -90,7 +88,7 @@ export default class MovieClip extends core.Sprite
         this._currentTime = 0;
 
         /**
-         * Indicates if the MovieClip is currently playing
+         * Indicates if the AnimatedSprite is currently playing
          *
          * @member {boolean}
          * @readonly
@@ -99,7 +97,7 @@ export default class MovieClip extends core.Sprite
     }
 
     /**
-     * Stops the MovieClip
+     * Stops the AnimatedSprite
      *
      */
     stop()
@@ -114,7 +112,7 @@ export default class MovieClip extends core.Sprite
     }
 
     /**
-     * Plays the MovieClip
+     * Plays the AnimatedSprite
      *
      */
     play()
@@ -129,7 +127,7 @@ export default class MovieClip extends core.Sprite
     }
 
     /**
-     * Stops the MovieClip and goes to a specific frame
+     * Stops the AnimatedSprite and goes to a specific frame
      *
      * @param {number} frameNumber - frame index to stop at
      */
@@ -143,24 +141,25 @@ export default class MovieClip extends core.Sprite
 
         if (previousFrame !== this.currentFrame)
         {
-            this._texture = this._textures[this.currentFrame];
-            this._textureID = -1;
-
-            if (this.onFrameChange)
-            {
-                this.onFrameChange(this.currentFrame);
-            }
+            this.updateTexture();
         }
     }
 
     /**
-     * Goes to a specific frame and begins playing the MovieClip
+     * Goes to a specific frame and begins playing the AnimatedSprite
      *
      * @param {number} frameNumber - frame index to start at
      */
     gotoAndPlay(frameNumber)
     {
+        const previousFrame = this.currentFrame;
+
         this._currentTime = frameNumber;
+
+        if (previousFrame !== this.currentFrame)
+        {
+            this.updateTexture();
+        }
 
         this.play();
     }
@@ -225,18 +224,28 @@ export default class MovieClip extends core.Sprite
         }
         else if (previousFrame !== this.currentFrame)
         {
-            this._texture = this._textures[this.currentFrame];
-            this._textureID = -1;
-
-            if (this.onFrameChange)
-            {
-                this.onFrameChange(this.currentFrame);
-            }
+            this.updateTexture();
         }
     }
 
     /**
-     * Stops the MovieClip and destroys it
+     * Updates the displayed texture to match the current frame index
+     *
+     * @private
+     */
+    updateTexture()
+    {
+        this._texture = this._textures[this.currentFrame];
+        this._textureID = -1;
+
+        if (this.onFrameChange)
+        {
+            this.onFrameChange(this.currentFrame);
+        }
+    }
+
+    /**
+     * Stops the AnimatedSprite and destroys it
      *
      */
     destroy()
@@ -250,7 +259,7 @@ export default class MovieClip extends core.Sprite
      *
      * @static
      * @param {string[]} frames - The array of frames ids the movieclip will use as its texture frames
-     * @return {MovieClip} The new movie clip with the specified frames.
+     * @return {AnimatedSprite} The new animated sprite with the specified frames.
      */
     static fromFrames(frames)
     {
@@ -261,7 +270,7 @@ export default class MovieClip extends core.Sprite
             textures.push(core.Texture.fromFrame(frames[i]));
         }
 
-        return new MovieClip(textures);
+        return new AnimatedSprite(textures);
     }
 
     /**
@@ -269,7 +278,7 @@ export default class MovieClip extends core.Sprite
      *
      * @static
      * @param {string[]} images - the array of image urls the movieclip will use as its texture frames
-     * @return {MovieClip} The new movie clip with the specified images as frames.
+     * @return {AnimatedSprite} The new animate sprite with the specified images as frames.
      */
     static fromImages(images)
     {
@@ -280,16 +289,15 @@ export default class MovieClip extends core.Sprite
             textures.push(core.Texture.fromImage(images[i]));
         }
 
-        return new MovieClip(textures);
+        return new AnimatedSprite(textures);
     }
 
     /**
-     * totalFrames is the total number of frames in the MovieClip. This is the same as number of textures
-     * assigned to the MovieClip.
+     * totalFrames is the total number of frames in the AnimatedSprite. This is the same as number of textures
+     * assigned to the AnimatedSprite.
      *
      * @readonly
      * @member {number}
-     * @memberof PIXI.extras.MovieClip#
      * @default 0
      */
     get totalFrames()
@@ -298,22 +306,16 @@ export default class MovieClip extends core.Sprite
     }
 
     /**
-     * The array of textures used for this MovieClip
+     * The array of textures used for this AnimatedSprite
      *
      * @member {PIXI.Texture[]}
-     * @memberof PIXI.extras.MovieClip#
      */
     get textures()
     {
         return this._textures;
     }
 
-    /**
-     * Sets the textures.
-     *
-     * @param {PIXI.Texture[]} value - The texture to set.
-     */
-    set textures(value)
+    set textures(value) // eslint-disable-line require-jsdoc
     {
         if (value[0] instanceof core.Texture)
         {
@@ -334,10 +336,9 @@ export default class MovieClip extends core.Sprite
     }
 
     /**
-    * The MovieClips current frame index
+    * The AnimatedSprites current frame index
     *
     * @member {number}
-    * @memberof PIXI.extras.MovieClip#
     * @readonly
     */
     get currentFrame()

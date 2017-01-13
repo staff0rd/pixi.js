@@ -12,7 +12,11 @@ export default function ()
         const imageResourceName = `${resource.name}_image`;
 
         // skip if no data, its not json, it isn't spritesheet data, or the image resource already exists
-        if (!resource.data || !resource.isJson || !resource.data.frames || this.resources[imageResourceName])
+        if (!resource.data
+            || resource.type !== Resource.TYPE.JSON
+            || !resource.data.frames
+            || this.resources[imageResourceName]
+        )
         {
             next();
 
@@ -23,6 +27,7 @@ export default function ()
             crossOrigin: resource.crossOrigin,
             loadType: Resource.LOAD_TYPE.IMAGE,
             metadata: resource.metadata.imageMetadata,
+            parentResource: resource,
         };
 
         // Prepend url path unless the resource image is a data url
@@ -42,7 +47,26 @@ export default function ()
 
             const frames = resource.data.frames;
             const frameKeys = Object.keys(frames);
-            const resolution = core.utils.getResolutionOfUrl(resource.url);
+            const baseTexture = res.texture.baseTexture;
+            const scale = resource.data.meta.scale;
+
+            // Use a defaultValue of `null` to check if a url-based resolution is set
+            let resolution = core.utils.getResolutionOfUrl(resource.url, null);
+
+            // No resolution found via URL
+            if (resolution === null)
+            {
+                // Use the scale value or default to 1
+                resolution = scale !== undefined ? scale : 1;
+            }
+
+            // For non-1 resolutions, update baseTexture
+            if (resolution !== 1)
+            {
+                baseTexture.resolution = resolution;
+                baseTexture.update();
+            }
+
             let batchIndex = 0;
 
             function processFrames(initialFrameIndex, maxFrames)
@@ -90,13 +114,13 @@ export default function ()
                             trim = new core.Rectangle(
                                 frames[i].spriteSourceSize.x / resolution,
                                 frames[i].spriteSourceSize.y / resolution,
-                                frames[i].spriteSourceSize.w / resolution,
-                                frames[i].spriteSourceSize.h / resolution
+                                rect.w / resolution,
+                                rect.h / resolution
                             );
                         }
 
                         resource.textures[i] = new core.Texture(
-                            res.texture.baseTexture,
+                            baseTexture,
                             frame,
                             orig,
                             trim,

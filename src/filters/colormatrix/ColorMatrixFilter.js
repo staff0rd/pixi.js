@@ -1,5 +1,6 @@
 import * as core from '../../core';
-const glslify = require('glslify'); // eslint-disable-line no-undef
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
 /**
  * The ColorMatrixFilter class lets you apply a 5x4 matrix transformation on the RGBA
@@ -25,9 +26,9 @@ export default class ColorMatrixFilter extends core.Filter
     {
         super(
             // vertex shader
-            glslify('../fragments/default.vert'),
+            readFileSync(join(__dirname, '../fragments/default.vert'), 'utf8'),
             // fragment shader
-            glslify('./colorMatrix.frag')
+            readFileSync(join(__dirname, './colorMatrix.frag'), 'utf8')
         );
 
         this.uniforms.m = [
@@ -563,7 +564,6 @@ export default class ColorMatrixFilter extends core.Filter
      * The matrix of the color matrix filter
      *
      * @member {number[]}
-     * @memberof PIXI.filters.ColorMatrixFilter#
      * @default [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0]
      */
     get matrix()
@@ -571,12 +571,7 @@ export default class ColorMatrixFilter extends core.Filter
         return this.uniforms.m;
     }
 
-    /**
-     * Sets the matrix directly.
-     *
-     * @param {number[]} value - the value to set to.
-     */
-    set matrix(value)
+    set matrix(value) // eslint-disable-line require-jsdoc
     {
         this.uniforms.m = value;
     }

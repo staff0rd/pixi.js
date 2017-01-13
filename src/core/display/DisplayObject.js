@@ -1,5 +1,6 @@
 import EventEmitter from 'eventemitter3';
 import { TRANSFORM_MODE } from '../const';
+import settings from '../settings';
 import TransformStatic from './TransformStatic';
 import Transform from './Transform';
 import Bounds from './Bounds';
@@ -24,7 +25,7 @@ export default class DisplayObject extends EventEmitter
     {
         super();
 
-        const TransformClass = TRANSFORM_MODE.DEFAULT === TRANSFORM_MODE.STATIC ? TransformStatic : Transform;
+        const TransformClass = settings.TRANSFORM_MODE === TRANSFORM_MODE.STATIC ? TransformStatic : Transform;
 
         this.tempDisplayObjectParent = null;
 
@@ -348,7 +349,7 @@ export default class DisplayObject extends EventEmitter
     }
 
     /**
-     * Convenience function to set the postion, scale, skew and pivot at once.
+     * Convenience function to set the position, scale, skew and pivot at once.
      *
      * @param {number} [x=0] - The X position
      * @param {number} [y=0] - The Y position
@@ -409,19 +410,13 @@ export default class DisplayObject extends EventEmitter
      * An alias to position.x
      *
      * @member {number}
-     * @memberof PIXI.DisplayObject#
      */
     get x()
     {
         return this.position.x;
     }
 
-    /**
-     * Sets the X position of the object.
-     *
-     * @param {number} value - The value to set to.
-     */
-    set x(value)
+    set x(value) // eslint-disable-line require-jsdoc
     {
         this.transform.position.x = value;
     }
@@ -431,19 +426,13 @@ export default class DisplayObject extends EventEmitter
      * An alias to position.y
      *
      * @member {number}
-     * @memberof PIXI.DisplayObject#
      */
     get y()
     {
         return this.position.y;
     }
 
-    /**
-     * Sets the Y position of the object.
-     *
-     * @param {number} value - The value to set to.
-     */
-    set y(value)
+    set y(value) // eslint-disable-line require-jsdoc
     {
         this.transform.position.y = value;
     }
@@ -452,7 +441,6 @@ export default class DisplayObject extends EventEmitter
      * Current transform of the object based on world (parent) factors
      *
      * @member {PIXI.Matrix}
-     * @memberof PIXI.DisplayObject#
      * @readonly
      */
     get worldTransform()
@@ -464,7 +452,6 @@ export default class DisplayObject extends EventEmitter
      * Current transform of the object based on local factors: position, scale, other stuff
      *
      * @member {PIXI.Matrix}
-     * @memberof PIXI.DisplayObject#
      * @readonly
      */
     get localTransform()
@@ -477,19 +464,13 @@ export default class DisplayObject extends EventEmitter
      * Assignment by value since pixi-v4.
      *
      * @member {PIXI.Point|PIXI.ObservablePoint}
-     * @memberof PIXI.DisplayObject#
      */
     get position()
     {
         return this.transform.position;
     }
 
-    /**
-     * Copies the point to the position of the object.
-     *
-     * @param {PIXI.Point} value - The value to set to.
-     */
-    set position(value)
+    set position(value) // eslint-disable-line require-jsdoc
     {
         this.transform.position.copy(value);
     }
@@ -499,19 +480,13 @@ export default class DisplayObject extends EventEmitter
      * Assignment by value since pixi-v4.
      *
      * @member {PIXI.Point|PIXI.ObservablePoint}
-     * @memberof PIXI.DisplayObject#
      */
     get scale()
     {
         return this.transform.scale;
     }
 
-    /**
-     * Copies the point to the scale of the object.
-     *
-     * @param {PIXI.Point} value - The value to set to.
-     */
-    set scale(value)
+    set scale(value) // eslint-disable-line require-jsdoc
     {
         this.transform.scale.copy(value);
     }
@@ -521,19 +496,13 @@ export default class DisplayObject extends EventEmitter
      * Assignment by value since pixi-v4.
      *
      * @member {PIXI.Point|PIXI.ObservablePoint}
-     * @memberof PIXI.DisplayObject#
      */
     get pivot()
     {
         return this.transform.pivot;
     }
 
-    /**
-     * Copies the point to the pivot of the object.
-     *
-     * @param {PIXI.Point} value - The value to set to.
-     */
-    set pivot(value)
+    set pivot(value) // eslint-disable-line require-jsdoc
     {
         this.transform.pivot.copy(value);
     }
@@ -543,19 +512,13 @@ export default class DisplayObject extends EventEmitter
      * Assignment by value since pixi-v4.
      *
      * @member {PIXI.ObservablePoint}
-     * @memberof PIXI.DisplayObject#
      */
     get skew()
     {
         return this.transform.skew;
     }
 
-    /**
-     * Copies the point to the skew of the object.
-     *
-     * @param {PIXI.Point} value - The value to set to.
-     */
-    set skew(value)
+    set skew(value) // eslint-disable-line require-jsdoc
     {
         this.transform.skew.copy(value);
     }
@@ -564,28 +527,21 @@ export default class DisplayObject extends EventEmitter
      * The rotation of the object in radians.
      *
      * @member {number}
-     * @memberof PIXI.DisplayObject#
      */
     get rotation()
     {
         return this.transform.rotation;
     }
 
-    /**
-     * Sets the rotation of the object.
-     *
-     * @param {number} value - The value to set to.
-     */
-    set rotation(value)
+    set rotation(value) // eslint-disable-line require-jsdoc
     {
         this.transform.rotation = value;
     }
 
     /**
-     * Indicates if the sprite is globally visible.
+     * Indicates if the object is globally visible.
      *
      * @member {boolean}
-     * @memberof PIXI.DisplayObject#
      * @readonly
      */
     get worldVisible()
@@ -614,19 +570,13 @@ export default class DisplayObject extends EventEmitter
      * @todo For the moment, PIXI.CanvasRenderer doesn't support PIXI.Sprite as mask.
      *
      * @member {PIXI.Graphics|PIXI.Sprite}
-     * @memberof PIXI.DisplayObject#
      */
     get mask()
     {
         return this._mask;
     }
 
-    /**
-     * Sets the mask.
-     *
-     * @param {PIXI.Graphics|PIXI.Sprite} value - The value to set to.
-     */
-    set mask(value)
+    set mask(value) // eslint-disable-line require-jsdoc
     {
         if (this._mask)
         {
@@ -646,20 +596,14 @@ export default class DisplayObject extends EventEmitter
      * * IMPORTANT: This is a webGL only feature and will be ignored by the canvas renderer.
      * To remove filters simply set this property to 'null'
      *
-     * @member {PIXI.AbstractFilter[]}
-     * @memberof PIXI.DisplayObject#
+     * @member {PIXI.Filter[]}
      */
     get filters()
     {
         return this._filters && this._filters.slice();
     }
 
-    /**
-     * Shallow copies the array to the filters of the object.
-     *
-     * @param {PIXI.Filter[]} value - The filters to set.
-     */
-    set filters(value)
+    set filters(value) // eslint-disable-line require-jsdoc
     {
         this._filters = value && value.slice();
     }
