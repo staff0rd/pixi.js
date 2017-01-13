@@ -1,6 +1,6 @@
 /*!
  * pixi.js - v4.3.2
- * Compiled Tue, 10 Jan 2017 12:54:33 UTC
+ * Compiled Fri, 13 Jan 2017 23:32:08 UTC
  *
  * pixi.js is licensed under the MIT License.
  * http://www.opensource.org/licenses/mit-license
@@ -7978,8 +7978,8 @@ function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj;
  * @return {PIXI.WebGLRenderer|PIXI.CanvasRenderer} Returns WebGL renderer if available, otherwise CanvasRenderer
  */
 function autoDetectRenderer() {
-    var width = arguments.length <= 0 || arguments[0] === undefined ? 800 : arguments[0];
-    var height = arguments.length <= 1 || arguments[1] === undefined ? 600 : arguments[1];
+    var width = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 800;
+    var height = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 600;
     var options = arguments[2];
     var noWebGL = arguments[3];
 
@@ -8930,7 +8930,7 @@ var Container = function (_DisplayObject) {
 
 
     Container.prototype.removeChildren = function removeChildren() {
-        var beginIndex = arguments.length <= 0 || arguments[0] === undefined ? 0 : arguments[0];
+        var beginIndex = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 0;
         var endIndex = arguments[1];
 
         var begin = beginIndex;
@@ -9516,7 +9516,7 @@ var DisplayObject = function (_EventEmitter) {
 
 
     DisplayObject.prototype.toGlobal = function toGlobal(position, point) {
-        var skipUpdate = arguments.length <= 2 || arguments[2] === undefined ? false : arguments[2];
+        var skipUpdate = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : false;
 
         if (!skipUpdate) {
             this._recursivePostUpdateTransform();
@@ -9632,15 +9632,15 @@ var DisplayObject = function (_EventEmitter) {
 
 
     DisplayObject.prototype.setTransform = function setTransform() {
-        var x = arguments.length <= 0 || arguments[0] === undefined ? 0 : arguments[0];
-        var y = arguments.length <= 1 || arguments[1] === undefined ? 0 : arguments[1];
-        var scaleX = arguments.length <= 2 || arguments[2] === undefined ? 1 : arguments[2];
-        var scaleY = arguments.length <= 3 || arguments[3] === undefined ? 1 : arguments[3];
-        var rotation = arguments.length <= 4 || arguments[4] === undefined ? 0 : arguments[4];
-        var skewX = arguments.length <= 5 || arguments[5] === undefined ? 0 : arguments[5];
-        var skewY = arguments.length <= 6 || arguments[6] === undefined ? 0 : arguments[6];
-        var pivotX = arguments.length <= 7 || arguments[7] === undefined ? 0 : arguments[7];
-        var pivotY = arguments.length <= 8 || arguments[8] === undefined ? 0 : arguments[8];
+        var x = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 0;
+        var y = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 0;
+        var scaleX = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 1;
+        var scaleY = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : 1;
+        var rotation = arguments.length > 4 && arguments[4] !== undefined ? arguments[4] : 0;
+        var skewX = arguments.length > 5 && arguments[5] !== undefined ? arguments[5] : 0;
+        var skewY = arguments.length > 6 && arguments[6] !== undefined ? arguments[6] : 0;
+        var pivotX = arguments.length > 7 && arguments[7] !== undefined ? arguments[7] : 0;
+        var pivotY = arguments.length > 8 && arguments[8] !== undefined ? arguments[8] : 0;
 
         this.position.x = x;
         this.position.y = y;
@@ -10671,9 +10671,9 @@ var Graphics = function (_Container) {
 
 
     Graphics.prototype.lineStyle = function lineStyle() {
-        var lineWidth = arguments.length <= 0 || arguments[0] === undefined ? 0 : arguments[0];
-        var color = arguments.length <= 1 || arguments[1] === undefined ? 0 : arguments[1];
-        var alpha = arguments.length <= 2 || arguments[2] === undefined ? 1 : arguments[2];
+        var lineWidth = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 0;
+        var color = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 0;
+        var alpha = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 1;
 
         this.lineWidth = lineWidth;
         this.lineColor = color;
@@ -10894,7 +10894,7 @@ var Graphics = function (_Container) {
 
 
     Graphics.prototype.arc = function arc(cx, cy, radius, startAngle, endAngle) {
-        var anticlockwise = arguments.length <= 5 || arguments[5] === undefined ? false : arguments[5];
+        var anticlockwise = arguments.length > 5 && arguments[5] !== undefined ? arguments[5] : false;
 
         if (startAngle === endAngle) {
             return this;
@@ -10967,8 +10967,8 @@ var Graphics = function (_Container) {
 
 
     Graphics.prototype.beginFill = function beginFill() {
-        var color = arguments.length <= 0 || arguments[0] === undefined ? 0 : arguments[0];
-        var alpha = arguments.length <= 1 || arguments[1] === undefined ? 1 : arguments[1];
+        var color = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 0;
+        var alpha = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 1;
 
         this.filling = true;
         this.fillColor = color;
@@ -11448,7 +11448,7 @@ var Graphics = function (_Container) {
 
 
     Graphics.prototype.generateCanvasTexture = function generateCanvasTexture(scaleMode) {
-        var resolution = arguments.length <= 1 || arguments[1] === undefined ? 1 : arguments[1];
+        var resolution = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 1;
 
         var bounds = this.getLocalBounds();
 
@@ -11965,7 +11965,7 @@ exports.default = bezierCurveTo;
  * @return {number[]} Array of points of the curve
  */
 function bezierCurveTo(fromX, fromY, cpX, cpY, cpX2, cpY2, toX, toY) {
-    var path = arguments.length <= 8 || arguments[8] === undefined ? [] : arguments[8];
+    var path = arguments.length > 8 && arguments[8] !== undefined ? arguments[8] : [];
 
     var n = 20;
     var dt = 0;
@@ -12989,7 +12989,7 @@ function buildRoundedRectangle(graphicsData, webGLData) {
  * @return {number[]} an array of points
  */
 function quadraticBezierCurve(fromX, fromY, cpX, cpY, toX, toY) {
-    var out = arguments.length <= 6 || arguments[6] === undefined ? [] : arguments[6];
+    var out = arguments.length > 6 && arguments[6] !== undefined ? arguments[6] : [];
 
     var n = 20;
     var points = out;
@@ -13560,8 +13560,8 @@ var GroupD8 = {
      * @param {number} ty - sprite anchoring
      */
     matrixAppendRotationInv: function matrixAppendRotationInv(matrix, rotation) {
-        var tx = arguments.length <= 2 || arguments[2] === undefined ? 0 : arguments[2];
-        var ty = arguments.length <= 3 || arguments[3] === undefined ? 0 : arguments[3];
+        var tx = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 0;
+        var ty = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : 0;
 
         // Packer used "rotation", we use "inv(rotation)"
         var mat = tempMatrices[GroupD8.inv(rotation)];
@@ -14118,8 +14118,8 @@ var ObservablePoint = function () {
      * @param {number} [y=0] - position of the point on the y axis
      */
     function ObservablePoint(cb, scope) {
-        var x = arguments.length <= 2 || arguments[2] === undefined ? 0 : arguments[2];
-        var y = arguments.length <= 3 || arguments[3] === undefined ? 0 : arguments[3];
+        var x = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 0;
+        var y = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : 0;
 
         _classCallCheck(this, ObservablePoint);
 
@@ -14230,8 +14230,8 @@ var Point = function () {
    * @param {number} [y=0] - position of the point on the y axis
    */
   function Point() {
-    var x = arguments.length <= 0 || arguments[0] === undefined ? 0 : arguments[0];
-    var y = arguments.length <= 1 || arguments[1] === undefined ? 0 : arguments[1];
+    var x = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 0;
+    var y = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 0;
 
     _classCallCheck(this, Point);
 
@@ -14417,9 +14417,9 @@ var Circle = function () {
    * @param {number} [radius=0] - The radius of the circle
    */
   function Circle() {
-    var x = arguments.length <= 0 || arguments[0] === undefined ? 0 : arguments[0];
-    var y = arguments.length <= 1 || arguments[1] === undefined ? 0 : arguments[1];
-    var radius = arguments.length <= 2 || arguments[2] === undefined ? 0 : arguments[2];
+    var x = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 0;
+    var y = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 0;
+    var radius = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 0;
 
     _classCallCheck(this, Circle);
 
@@ -14532,10 +14532,10 @@ var Ellipse = function () {
    * @param {number} [height=0] - The half height of this ellipse
    */
   function Ellipse() {
-    var x = arguments.length <= 0 || arguments[0] === undefined ? 0 : arguments[0];
-    var y = arguments.length <= 1 || arguments[1] === undefined ? 0 : arguments[1];
-    var width = arguments.length <= 2 || arguments[2] === undefined ? 0 : arguments[2];
-    var height = arguments.length <= 3 || arguments[3] === undefined ? 0 : arguments[3];
+    var x = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 0;
+    var y = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 0;
+    var width = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 0;
+    var height = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : 0;
 
     _classCallCheck(this, Ellipse);
 
@@ -14782,10 +14782,10 @@ var Rectangle = function () {
      * @param {number} [height=0] - The overall height of this rectangle
      */
     function Rectangle() {
-        var x = arguments.length <= 0 || arguments[0] === undefined ? 0 : arguments[0];
-        var y = arguments.length <= 1 || arguments[1] === undefined ? 0 : arguments[1];
-        var width = arguments.length <= 2 || arguments[2] === undefined ? 0 : arguments[2];
-        var height = arguments.length <= 3 || arguments[3] === undefined ? 0 : arguments[3];
+        var x = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 0;
+        var y = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 0;
+        var width = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 0;
+        var height = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : 0;
 
         _classCallCheck(this, Rectangle);
 
@@ -15048,11 +15048,11 @@ var RoundedRectangle = function () {
      * @param {number} [radius=20] - Controls the radius of the rounded corners
      */
     function RoundedRectangle() {
-        var x = arguments.length <= 0 || arguments[0] === undefined ? 0 : arguments[0];
-        var y = arguments.length <= 1 || arguments[1] === undefined ? 0 : arguments[1];
-        var width = arguments.length <= 2 || arguments[2] === undefined ? 0 : arguments[2];
-        var height = arguments.length <= 3 || arguments[3] === undefined ? 0 : arguments[3];
-        var radius = arguments.length <= 4 || arguments[4] === undefined ? 20 : arguments[4];
+        var x = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 0;
+        var y = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 0;
+        var width = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 0;
+        var height = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : 0;
+        var radius = arguments.length > 4 && arguments[4] !== undefined ? arguments[4] : 20;
 
         _classCallCheck(this, RoundedRectangle);
 
@@ -15555,7 +15555,7 @@ var CanvasRenderer = function (_SystemRenderer) {
      *  stopping pixel interpolation.
      */
     function CanvasRenderer(width, height) {
-        var options = arguments.length <= 2 || arguments[2] === undefined ? {} : arguments[2];
+        var options = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
 
         _classCallCheck(this, CanvasRenderer);
 
@@ -16178,7 +16178,7 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
  * @return {string[]} Mapped modes.
  */
 function mapCanvasBlendModesToPixi() {
-    var array = arguments.length <= 0 || arguments[0] === undefined ? [] : arguments[0];
+    var array = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : [];
 
     if ((0, _canUseNewCanvasBlendModes2.default)()) {
         array[_const.BLEND_MODES.NORMAL] = 'source-over';
@@ -16697,7 +16697,7 @@ var WebGLRenderer = function (_SystemRenderer) {
      *  rendering, stopping pixel interpolation.
      */
     function WebGLRenderer(width, height) {
-        var options = arguments.length <= 2 || arguments[2] === undefined ? {} : arguments[2];
+        var options = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
 
         _classCallCheck(this, WebGLRenderer);
 
@@ -19596,7 +19596,7 @@ var _const = require('../../../const');
  * @return {string[]} Mapped modes.
  */
 function mapWebGLBlendModesToPixi(gl) {
-    var array = arguments.length <= 1 || arguments[1] === undefined ? [] : arguments[1];
+    var array = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : [];
 
     // TODO - premultiply alpha would be different.
     // add a boolean for that!
@@ -19640,7 +19640,7 @@ var _const = require('../../../const');
  * @return {object} The mapped draw modes.
  */
 function mapWebGLDrawModesToPixi(gl) {
-  var object = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+  var object = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
 
   object[_const.DRAW_MODES.POINTS] = gl.POINTS;
   object[_const.DRAW_MODES.LINES] = gl.LINES;
@@ -21811,7 +21811,7 @@ var Text = function (_Sprite) {
 
 
     Text.prototype.drawLetterSpacing = function drawLetterSpacing(text, x, y) {
-        var isStroke = arguments.length <= 3 || arguments[3] === undefined ? false : arguments[3];
+        var isStroke = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : false;
 
         var style = this._style;
 
@@ -21852,7 +21852,7 @@ var Text = function (_Sprite) {
 
 
     Text.prototype.updateTexture = function updateTexture() {
-        if (this.trim) {
+        if (this._style.trim) {
             var trimmed = this.getTrimmed(this.canvas);
 
             this.canvas.width = trimmed.trimWidth;
@@ -22448,6 +22448,7 @@ var defaultStyle = {
     stroke: 'black',
     strokeThickness: 0,
     textBaseline: 'alphabetic',
+    trim: false,
     wordWrap: false,
     wordWrapWidth: 100
 };
@@ -22497,6 +22498,7 @@ var TextStyle = function () {
      *  e.g 'blue', '#FCFF00'
      * @param {number} [style.strokeThickness=0] - A number that represents the thickness of the stroke.
      *  Default is 0 (no stroke)
+     * @param {boolean} [style.trim=false] - Trim transparent borders
      * @param {string} [style.textBaseline='alphabetic'] - The baseline of the text that is rendered.
      * @param {boolean} [style.wordWrap=false] - Indicates if word wrap should be used
      * @param {number} [style.wordWrapWidth=100] - The width at which text will wrap, it needs wordWrap to be set to true
@@ -22782,6 +22784,17 @@ var TextStyle = function () {
             }
         }
     }, {
+        key: 'trim',
+        get: function get() {
+            return this._trim;
+        },
+        set: function set(trim) {
+            if (this._trim !== trim) {
+                this._trim = trim;
+                this.styleID++;
+            }
+        }
+    }, {
         key: 'wordWrap',
         get: function get() {
             return this._wordWrap;
@@ -22923,8 +22936,8 @@ var BaseRenderTexture = function (_BaseTexture) {
    * @param {number} [resolution=1] - The resolution / device pixel ratio of the texture being generated
    */
   function BaseRenderTexture() {
-    var width = arguments.length <= 0 || arguments[0] === undefined ? 100 : arguments[0];
-    var height = arguments.length <= 1 || arguments[1] === undefined ? 100 : arguments[1];
+    var width = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 100;
+    var height = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 100;
     var scaleMode = arguments[2];
     var resolution = arguments[3];
 
@@ -23017,7 +23030,7 @@ exports.default = BaseRenderTexture;
 
 exports.__esModule = true;
 
-var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol ? "symbol" : typeof obj; };
+var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
 
 var _utils = require('../utils');
 
@@ -25165,7 +25178,7 @@ var Ticker = function () {
 
 
     Ticker.prototype.update = function update() {
-        var currentTime = arguments.length <= 0 || arguments[0] === undefined ? performance.now() : arguments[0];
+        var currentTime = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : performance.now();
 
         var elapsedMS = void 0;
 
@@ -25391,7 +25404,7 @@ var tempAnchor = void 0;
  * @return {string} The crossOrigin value to use (or empty string for none).
  */
 function determineCrossOrigin(url) {
-    var loc = arguments.length <= 1 || arguments[1] === undefined ? window.location : arguments[1];
+    var loc = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : window.location;
 
     // data: and javascript: urls are considered same-origin
     if (url.indexOf('data:') === 0) {
@@ -25656,7 +25669,7 @@ function sayHello(type) {
     }
 
     if (navigator.userAgent.toLowerCase().indexOf('chrome') > -1) {
-        var args = ['\n %c %c %c Pixi.js ' + _const.VERSION + ' - ✰ ' + type + ' ✰  %c  %c  http://www.pixijs.com/  %c %c ♥%c♥%c♥ \n\n', 'background: #ff66a5; padding:5px 0;', 'background: #ff66a5; padding:5px 0;', 'color: #ff66a5; background: #030307; padding:5px 0;', 'background: #ff66a5; padding:5px 0;', 'background: #ffc3dc; padding:5px 0;', 'background: #ff66a5; padding:5px 0;', 'color: #ff2424; background: #fff; padding:5px 0;', 'color: #ff2424; background: #fff; padding:5px 0;', 'color: #ff2424; background: #fff; padding:5px 0;'];
+        var args = ['\n %c %c %c Pixi.js ' + _const.VERSION + ' - \u2730 ' + type + ' \u2730  %c  %c  http://www.pixijs.com/  %c %c \u2665%c\u2665%c\u2665 \n\n', 'background: #ff66a5; padding:5px 0;', 'background: #ff66a5; padding:5px 0;', 'color: #ff66a5; background: #030307; padding:5px 0;', 'background: #ff66a5; padding:5px 0;', 'background: #ffc3dc; padding:5px 0;', 'background: #ff66a5; padding:5px 0;', 'color: #ff2424; background: #fff; padding:5px 0;', 'color: #ff2424; background: #fff; padding:5px 0;', 'color: #ff2424; background: #fff; padding:5px 0;'];
 
         window.console.log.apply(console, args);
     } else if (window.console) {
@@ -27622,7 +27635,7 @@ var BitmapText = function (_core$Container) {
      * @param {number} [style.tint=0xFFFFFF] - The tint color
      */
     function BitmapText(text) {
-        var style = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+        var style = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
 
         _classCallCheck(this, BitmapText);
 
@@ -28225,8 +28238,8 @@ var TilingSprite = function (_core$Sprite) {
      * @param {number} [height=100] - the height of the tiling sprite
      */
     function TilingSprite(texture) {
-        var width = arguments.length <= 1 || arguments[1] === undefined ? 100 : arguments[1];
-        var height = arguments.length <= 2 || arguments[2] === undefined ? 100 : arguments[2];
+        var width = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 100;
+        var height = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 100;
 
         _classCallCheck(this, TilingSprite);
 
@@ -29019,8 +29032,8 @@ function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj;
  * @return {Point} The updated point
  */
 core.DisplayObject.prototype.getGlobalPosition = function getGlobalPosition() {
-    var point = arguments.length <= 0 || arguments[0] === undefined ? new core.Point() : arguments[0];
-    var skipUpdate = arguments.length <= 1 || arguments[1] === undefined ? false : arguments[1];
+    var point = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : new core.Point();
+    var skipUpdate = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
 
     if (this.parent) {
         this.parent.toGlobal(this.position, point, skipUpdate);
@@ -29922,7 +29935,7 @@ var ColorMatrixFilter = function (_core$Filter) {
 
 
     ColorMatrixFilter.prototype._loadMatrix = function _loadMatrix(matrix) {
-        var multiply = arguments.length <= 1 || arguments[1] === undefined ? false : arguments[1];
+        var multiply = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
 
         var newMatrix = matrix;
 
@@ -30121,7 +30134,7 @@ var ColorMatrixFilter = function (_core$Filter) {
 
 
     ColorMatrixFilter.prototype.saturate = function saturate() {
-        var amount = arguments.length <= 0 || arguments[0] === undefined ? 0 : arguments[0];
+        var amount = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 0;
         var multiply = arguments[1];
 
         var x = amount * 2 / 3 + 1;
@@ -31429,7 +31442,7 @@ var InteractionManager = function (_EventEmitter) {
 
 
     InteractionManager.prototype.setTargetElement = function setTargetElement(element) {
-        var resolution = arguments.length <= 1 || arguments[1] === undefined ? 1 : arguments[1];
+        var resolution = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 1;
 
         this.removeEvents();
 
@@ -34745,9 +34758,9 @@ var ParticleContainer = function (_core$Container) {
      * @param {number} [batchSize=15000] - Number of particles per batch.
      */
     function ParticleContainer() {
-        var maxSize = arguments.length <= 0 || arguments[0] === undefined ? 1500 : arguments[0];
+        var maxSize = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 1500;
         var properties = arguments[1];
-        var batchSize = arguments.length <= 2 || arguments[2] === undefined ? 16384 : arguments[2];
+        var batchSize = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 16384;
 
         _classCallCheck(this, ParticleContainer);
 
