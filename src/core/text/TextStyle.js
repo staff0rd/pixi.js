@@ -8,12 +8,14 @@ const defaultStyle = {
     align: 'left',
     breakWords: false,
     dropShadow: false,
+    dropShadowAlpha: 1,
     dropShadowAngle: Math.PI / 6,
     dropShadowBlur: 0,
     dropShadowColor: '#000000',
     dropShadowDistance: 5,
     fill: 'black',
     fillGradientType: TEXT_GRADIENT.LINEAR_VERTICAL,
+    fillGradientStops: [],
     fontFamily: 'Arial',
     fontSize: 26,
     fontStyle: 'normal',
@@ -48,6 +50,7 @@ export default class TextStyle
      * @param {boolean} [style.breakWords=false] - Indicates if lines can be wrapped within words, it
      *  needs wordWrap to be set to true
      * @param {boolean} [style.dropShadow=false] - Set a drop shadow for the text
+     * @param {number} [style.dropShadowAlpha=1] - Set alpha for the drop shadow
      * @param {number} [style.dropShadowAngle=Math.PI/6] - Set a angle of the drop shadow
      * @param {number} [style.dropShadowBlur=0] - Set a shadow blur radius
      * @param {string} [style.dropShadowColor='#000000'] - A fill style to be used on the dropshadow e.g 'red', '#00FF00'
@@ -56,8 +59,10 @@ export default class TextStyle
      *  fillstyle that will be used on the text e.g 'red', '#00FF00'. Can be an array to create a gradient
      *  eg ['#000000','#FFFFFF']
      * {@link https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/fillStyle|MDN}
-     * @param {number} [style.fillGradientType=PIXI.TEXT_GRADIENT.LINEAR_VERTICAL] - If fills styles are
-     *  supplied, this can change the type/direction of the gradient. See {@link PIXI.TEXT_GRADIENT} for possible values
+     * @param {number} [style.fillGradientType=PIXI.TEXT_GRADIENT.LINEAR_VERTICAL] - If fill is an array of colours
+     *  to create a gradient, this can change the type/direction of the gradient. See {@link PIXI.TEXT_GRADIENT}
+     * @param {number[]} [style.fillGradientStops] - If fill is an array of colours to create a gradient, this array can set
+     * the stop points (numbers between 0 and 1) for the color, overriding the default behaviour of evenly spacing them.
      * @param {string|string[]} [style.fontFamily='Arial'] - The font family
      * @param {number|string} [style.fontSize=26] - The font size (as a number it converts to px, but as a string,
      *  equivalents are '26px','20pt','160%' or '1.6em')
@@ -154,6 +159,19 @@ export default class TextStyle
         }
     }
 
+    get dropShadowAlpha()
+    {
+        return this._dropShadowAlpha;
+    }
+    set dropShadowAlpha(dropShadowAlpha)
+    {
+        if (this._dropShadowAlpha !== dropShadowAlpha)
+        {
+            this._dropShadowAlpha = dropShadowAlpha;
+            this.styleID++;
+        }
+    }
+
     get dropShadowAngle()
     {
         return this._dropShadowAngle;
@@ -230,6 +248,19 @@ export default class TextStyle
         if (this._fillGradientType !== fillGradientType)
         {
             this._fillGradientType = fillGradientType;
+            this.styleID++;
+        }
+    }
+
+    get fillGradientStops()
+    {
+        return this._fillGradientStops;
+    }
+    set fillGradientStops(fillGradientStops)
+    {
+        if (!areArraysEqual(this._fillGradientStops,fillGradientStops))
+        {
+            this._fillGradientStops = fillGradientStops;
             this.styleID++;
         }
     }
@@ -489,4 +520,35 @@ function getColor(color)
 
         return color;
     }
+}
+
+/**
+ * Utility function to convert hexadecimal colors to strings, and simply return the color if it's a string.
+ * This version can also convert array of colors
+ *
+ * @param {Array} array1 First array to compare
+ * @param {Array} array2 Second array to compare
+ * @return {boolean} Do the arrays contain the same values in the same order
+ */
+function areArraysEqual(array1, array2)
+{
+    if (!Array.isArray(array1) || !Array.isArray(array2))
+    {
+        return false;
+    }
+
+    if (array1.length !== array2.length)
+    {
+        return false;
+    }
+
+    for (let i = 0; i < array1.length; ++i)
+    {
+        if (array1[i] !== array2[i])
+        {
+            return false;
+        }
+    }
+
+    return true;
 }

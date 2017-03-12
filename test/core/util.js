@@ -47,6 +47,11 @@ describe('PIXI.utils', function ()
                 .to.be.a('function');
         });
 
+        it('should calculate correctly', function ()
+        {
+            expect(PIXI.utils.rgb2hex([0.3, 0.2, 0.1])).to.equals(0x4c3319);
+        });
+
         // it('should properly convert rgb array to hex color string');
     });
 
@@ -96,7 +101,7 @@ describe('PIXI.utils', function ()
 
     describe('getUrlFileExtension', function ()
     {
-        it('should exist', () =>
+        it('should exist', function ()
         {
             expect(PIXI.utils.getUrlFileExtension)
                 .to.be.a('function');
