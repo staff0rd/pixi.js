@@ -28,8 +28,9 @@ export default class Graphics extends Container
 {
     /**
      *
+     * @param {boolean} [nativeLines=false] - If true the lines will be draw using LINES instead of TRIANGLE_STRIP
      */
-    constructor()
+    constructor(nativeLines = false)
     {
         super();
 
@@ -48,6 +49,13 @@ export default class Graphics extends Container
          * @default 0
          */
         this.lineWidth = 0;
+
+        /**
+         * If true the lines will be draw using LINES instead of TRIANGLE_STRIP
+         *
+         * @member {boolean}
+         */
+        this.nativeLines = nativeLines;
 
         /**
          * The color of any lines drawn.
@@ -759,28 +767,14 @@ export default class Graphics extends Container
 
         if (!this._spriteRect)
         {
-            if (!Graphics._SPRITE_TEXTURE)
-            {
-                Graphics._SPRITE_TEXTURE = RenderTexture.create(10, 10);
-
-                const canvas = document.createElement('canvas');
-
-                canvas.width = 10;
-                canvas.height = 10;
-
-                const context = canvas.getContext('2d');
-
-                context.fillStyle = 'white';
-                context.fillRect(0, 0, 10, 10);
-
-                Graphics._SPRITE_TEXTURE = Texture.fromCanvas(canvas);
-            }
-
-            this._spriteRect = new Sprite(Graphics._SPRITE_TEXTURE);
+            this._spriteRect = new Sprite(new Texture(Texture.WHITE));
         }
+
+        const sprite = this._spriteRect;
+
         if (this.tint === 0xffffff)
         {
-            this._spriteRect.tint = this.graphicsData[0].fillColor;
+            sprite.tint = this.graphicsData[0].fillColor;
         }
         else
         {
@@ -794,20 +788,21 @@ export default class Graphics extends Container
             t1[1] *= t2[1];
             t1[2] *= t2[2];
 
-            this._spriteRect.tint = rgb2hex(t1);
+            sprite.tint = rgb2hex(t1);
         }
-        this._spriteRect.alpha = this.graphicsData[0].fillAlpha;
-        this._spriteRect.worldAlpha = this.worldAlpha * this._spriteRect.alpha;
+        sprite.alpha = this.graphicsData[0].fillAlpha;
+        sprite.worldAlpha = this.worldAlpha * sprite.alpha;
+        sprite.blendMode = this.blendMode;
 
-        Graphics._SPRITE_TEXTURE._frame.width = rect.width;
-        Graphics._SPRITE_TEXTURE._frame.height = rect.height;
+        sprite._texture._frame.width = rect.width;
+        sprite._texture._frame.height = rect.height;
 
-        this._spriteRect.transform.worldTransform = this.transform.worldTransform;
+        sprite.transform.worldTransform = this.transform.worldTransform;
 
-        this._spriteRect.anchor.set(-rect.x / rect.width, -rect.y / rect.height);
-        this._spriteRect._onAnchorUpdate();
+        sprite.anchor.set(-rect.x / rect.width, -rect.y / rect.height);
+        sprite._onAnchorUpdate();
 
-        this._spriteRect._renderWebGL(renderer);
+        sprite._renderWebGL(renderer);
     }
 
     /**
@@ -872,6 +867,19 @@ export default class Graphics extends Container
             {
                 if (data.shape.contains(tempPoint.x, tempPoint.y))
                 {
+                    if (data.holes)
+                    {
+                        for (let i = 0; i < data.holes.length; i++)
+                        {
+                            const hole = data.holes[i];
+
+                            if (hole.contains(tempPoint.x, tempPoint.y))
+                            {
+                                return false;
+                            }
+                        }
+                    }
+
                     return true;
                 }
             }
@@ -1001,10 +1009,10 @@ export default class Graphics extends Container
         const padding = this.boundsPadding;
 
         this._localBounds.minX = minX - padding;
-        this._localBounds.maxX = maxX + (padding * 2);
+        this._localBounds.maxX = maxX + padding;
 
         this._localBounds.minY = minY - padding;
-        this._localBounds.maxY = maxY + (padding * 2);
+        this._localBounds.maxY = maxY + padding;
     }
 
     /**
@@ -1033,6 +1041,7 @@ export default class Graphics extends Container
             this.fillColor,
             this.fillAlpha,
             this.filling,
+            this.nativeLines,
             shape
         );
 
@@ -1067,12 +1076,17 @@ export default class Graphics extends Container
             canvasRenderer = new CanvasRenderer();
         }
 
-        tempMatrix.tx = -bounds.x;
-        tempMatrix.ty = -bounds.y;
+        this.transform.updateLocalTransform();
+        this.transform.localTransform.copy(tempMatrix);
 
-        canvasRenderer.render(this, canvasBuffer, false, tempMatrix);
+        tempMatrix.invert();
 
-        const texture = Texture.fromCanvas(canvasBuffer.baseTexture._canvasRenderTarget.canvas, scaleMode);
+        tempMatrix.tx -= bounds.x;
+        tempMatrix.ty -= bounds.y;
+
+        canvasRenderer.render(this, canvasBuffer, true, tempMatrix);
+
+        const texture = Texture.fromCanvas(canvasBuffer.baseTexture._canvasRenderTarget.canvas, scaleMode, 'graphics');
 
         texture.baseTexture.resolution = resolution;
         texture.baseTexture.update();

@@ -2,10 +2,10 @@
 export * from './polyfill';
 
 // export core
-export * from './deprecation';
 export * from './core';
 
 // export libs
+import deprecation from './deprecation';
 import * as accessibility from './accessibility';
 import * as extract from './extract';
 import * as extras from './extras';
@@ -15,6 +15,18 @@ import * as loaders from './loaders';
 import * as mesh from './mesh';
 import * as particles from './particles';
 import * as prepare from './prepare';
+
+// handle mixins now, after all code has been added, including deprecation
+import { utils } from './core';
+utils.mixins.performMixins();
+
+/**
+ * Alias for {@link PIXI.loaders.shared}.
+ * @name loader
+ * @memberof PIXI
+ * @type {PIXI.loader.Loader}
+ */
+const loader = loaders.shared || null;
 
 export {
     accessibility,
@@ -26,18 +38,15 @@ export {
     mesh,
     particles,
     prepare,
+    loader,
 };
 
-/**
- * A premade instance of the loader that can be used to load resources.
- *
- * @name loader
- * @memberof PIXI
- * @property {PIXI.loaders.Loader}
- */
-const loader = loaders && loaders.Loader ? new loaders.Loader() : null; // check is there in case user excludes loader lib
-
-export { loader };
+// Apply the deprecations
+if (typeof deprecation === 'function')
+{
+    deprecation(exports);
+}
 
 // Always export pixi globally.
 global.PIXI = exports; // eslint-disable-line
+

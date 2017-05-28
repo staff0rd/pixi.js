@@ -11,8 +11,9 @@ import { hex2rgb } from '../../../utils';
  * @private
  * @param {PIXI.WebGLGraphicsData} graphicsData - The graphics object containing all the necessary properties
  * @param {object} webGLData - an object containing all the webGL-specific information to create this shape
+ * @param {object} webGLDataNativeLines - an object containing all the webGL-specific information to create nativeLines
  */
-export default function buildRoundedRectangle(graphicsData, webGLData)
+export default function buildRoundedRectangle(graphicsData, webGLData, webGLDataNativeLines)
 {
     const rrectData = graphicsData.shape;
     const x = rrectData.x;
@@ -70,10 +71,30 @@ export default function buildRoundedRectangle(graphicsData, webGLData)
 
         graphicsData.points = recPoints;
 
-        buildLine(graphicsData, webGLData);
+        buildLine(graphicsData, webGLData, webGLDataNativeLines);
 
         graphicsData.points = tempPoints;
     }
+}
+
+/**
+ * Calculate a single point for a quadratic bezier curve.
+ * Utility function used by quadraticBezierCurve.
+ * Ignored from docs since it is not directly exposed.
+ *
+ * @ignore
+ * @private
+ * @param {number} n1 - first number
+ * @param {number} n2 - second number
+ * @param {number} perc - percentage
+ * @return {number} the result
+ *
+ */
+function getPt(n1, n2, perc)
+{
+    const diff = n2 - n1;
+
+    return n1 + (diff * perc);
 }
 
 /**
@@ -104,13 +125,6 @@ function quadraticBezierCurve(fromX, fromY, cpX, cpY, toX, toY, out = [])
     let yb = 0;
     let x = 0;
     let y = 0;
-
-    function getPt(n1, n2, perc)
-    {
-        const diff = n2 - n1;
-
-        return n1 + (diff * perc);
-    }
 
     for (let i = 0, j = 0; i <= n; ++i)
     {

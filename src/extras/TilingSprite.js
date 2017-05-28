@@ -180,9 +180,9 @@ export default class TilingSprite extends core.Sprite
         const transform = this.worldTransform;
         const resolution = renderer.resolution;
         const baseTexture = texture.baseTexture;
-        const baseTextureResolution = texture.baseTexture.resolution;
-        const modX = (this.tilePosition.x / this.tileScale.x) % texture._frame.width;
-        const modY = (this.tilePosition.y / this.tileScale.y) % texture._frame.height;
+        const baseTextureResolution = baseTexture.resolution;
+        const modX = ((this.tilePosition.x / this.tileScale.x) % texture._frame.width) * baseTextureResolution;
+        const modY = ((this.tilePosition.y / this.tileScale.y) % texture._frame.height) * baseTextureResolution;
 
         // create a nice shiny pattern!
         // TODO this needs to be refreshed if texture changes..
@@ -220,20 +220,33 @@ export default class TilingSprite extends core.Sprite
                            transform.tx * resolution,
                            transform.ty * resolution);
 
-        // TODO - this should be rolled into the setTransform above..
-        context.scale(this.tileScale.x / baseTextureResolution, this.tileScale.y / baseTextureResolution);
-
-        context.translate(modX + (this.anchor.x * -this._width),
-                          modY + (this.anchor.y * -this._height));
-
         renderer.setBlendMode(this.blendMode);
 
         // fill the pattern!
         context.fillStyle = this._canvasPattern;
-        context.fillRect(-modX,
-                         -modY,
-                         this._width / this.tileScale.x * baseTextureResolution,
-                         this._height / this.tileScale.y * baseTextureResolution);
+
+        // TODO - this should be rolled into the setTransform above..
+        context.scale(this.tileScale.x / baseTextureResolution, this.tileScale.y / baseTextureResolution);
+
+        const anchorX = this.anchor.x * -this._width;
+        const anchorY = this.anchor.y * -this._height;
+
+        if (this.uvRespectAnchor)
+        {
+            context.translate(modX, modY);
+
+            context.fillRect(-modX + anchorX, -modY + anchorY,
+                this._width / this.tileScale.x * baseTextureResolution,
+                this._height / this.tileScale.y * baseTextureResolution);
+        }
+        else
+        {
+            context.translate(modX + anchorX, modY + anchorY);
+
+            context.fillRect(-modX, -modY,
+                this._width / this.tileScale.x * baseTextureResolution,
+                this._height / this.tileScale.y * baseTextureResolution);
+        }
     }
 
     /**
@@ -311,12 +324,18 @@ export default class TilingSprite extends core.Sprite
     }
 
     /**
-     * Destroys this tiling sprite
+     * Destroys this sprite and optionally its texture and children
      *
+     * @param {object|boolean} [options] - Options parameter. A boolean will act as if all options
+     *  have been set to that value
+     * @param {boolean} [options.children=false] - if set to true, all the children will have their destroy
+     *      method called as well. 'options' will be passed on to those calls.
+     * @param {boolean} [options.texture=false] - Should it destroy the current texture of the sprite as well
+     * @param {boolean} [options.baseTexture=false] - Should it destroy the base texture of the sprite as well
      */
-    destroy()
+    destroy(options)
     {
-        super.destroy();
+        super.destroy(options);
 
         this.tileTransform = null;
         this.uvTransform = null;

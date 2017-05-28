@@ -4,7 +4,8 @@ import canUseNewCanvasBlendModes from '../../renderers/canvas/utils/canUseNewCan
 /**
  * Utility methods for Sprite/Texture tinting.
  *
- * @namespace PIXI.CanvasTinter
+ * @class
+ * @memberof PIXI
  */
 const CanvasTinter = {
     /**
@@ -17,7 +18,7 @@ const CanvasTinter = {
      */
     getTintedTexture: (sprite, color) =>
     {
-        const texture = sprite.texture;
+        const texture = sprite._texture;
 
         color = CanvasTinter.roundColor(color);
 
@@ -25,16 +26,27 @@ const CanvasTinter = {
 
         texture.tintCache = texture.tintCache || {};
 
-        if (texture.tintCache[stringColor])
+        const cachedTexture = texture.tintCache[stringColor];
+
+        let canvas;
+
+        if (cachedTexture)
         {
-            return texture.tintCache[stringColor];
+            if (cachedTexture.tintId === texture._updateID)
+            {
+                return texture.tintCache[stringColor];
+            }
+
+            canvas = texture.tintCache[stringColor];
+        }
+        else
+        {
+            canvas = CanvasTinter.canvas || document.createElement('canvas');
         }
 
-        // clone texture..
-        const canvas = CanvasTinter.canvas || document.createElement('canvas');
-
-        // CanvasTinter.tintWithPerPixel(texture, stringColor, canvas);
         CanvasTinter.tintMethod(texture, color, canvas);
+
+        canvas.tintId = texture._updateID;
 
         if (CanvasTinter.convertTintToImage)
         {
@@ -74,8 +86,8 @@ const CanvasTinter = {
         crop.width *= resolution;
         crop.height *= resolution;
 
-        canvas.width = crop.width;
-        canvas.height = crop.height;
+        canvas.width = Math.ceil(crop.width);
+        canvas.height = Math.ceil(crop.height);
 
         context.fillStyle = `#${(`00000${(color | 0).toString(16)}`).substr(-6)}`;
 
@@ -129,8 +141,8 @@ const CanvasTinter = {
         crop.width *= resolution;
         crop.height *= resolution;
 
-        canvas.width = crop.width;
-        canvas.height = crop.height;
+        canvas.width = Math.ceil(crop.width);
+        canvas.height = Math.ceil(crop.height);
 
         context.globalCompositeOperation = 'copy';
         context.fillStyle = `#${(`00000${(color | 0).toString(16)}`).substr(-6)}`;
@@ -171,8 +183,8 @@ const CanvasTinter = {
         crop.width *= resolution;
         crop.height *= resolution;
 
-        canvas.width = crop.width;
-        canvas.height = crop.height;
+        canvas.width = Math.ceil(crop.width);
+        canvas.height = Math.ceil(crop.height);
 
         context.globalCompositeOperation = 'copy';
         context.drawImage(

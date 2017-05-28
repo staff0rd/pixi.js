@@ -2,40 +2,6 @@
 
 describe('PIXI.Text', function ()
 {
-    describe('getFontStyle', function ()
-    {
-        it('should be a valid API', function ()
-        {
-            expect(PIXI.Text.getFontStyle).to.be.a.function;
-        });
-
-        it('should assume pixel fonts', function ()
-        {
-            const style = PIXI.Text.getFontStyle({ fontSize: 72 });
-
-            expect(style).to.be.a.string;
-            expect(style).to.have.string(' 72px ');
-        });
-
-        it('should handle multiple fonts as array', function ()
-        {
-            const style = PIXI.Text.getFontStyle({
-                fontFamily: ['Georgia', 'Arial', 'sans-serif'],
-            });
-
-            expect(style).to.have.string('"Georgia","Arial","sans-serif"');
-        });
-
-        it('should handle multiple fonts as string', function ()
-        {
-            const style = PIXI.Text.getFontStyle({
-                fontFamily: 'Georgia, "Arial", sans-serif',
-            });
-
-            expect(style).to.have.string('"Georgia","Arial","sans-serif"');
-        });
-    });
-
     describe('destroy', function ()
     {
         it('should call through to Sprite.destroy', function ()
@@ -110,6 +76,44 @@ describe('PIXI.Text', function ()
             text.width = 300;
 
             expect(text.width).to.equal(300);
+        });
+    });
+
+    describe('text', function ()
+    {
+        it('should convert numbers into strings', function ()
+        {
+            const text = new PIXI.Text(2);
+
+            expect(text.text).to.equal('2');
+        });
+
+        it('should not change 0 to \'\'', function ()
+        {
+            const text = new PIXI.Text(0);
+
+            expect(text.text).to.equal('0');
+        });
+
+        it('should prevent setting null', function ()
+        {
+            const text = new PIXI.Text(null);
+
+            expect(text.text).to.equal(' ');
+        });
+
+        it('should prevent setting undefined', function ()
+        {
+            const text = new PIXI.Text();
+
+            expect(text.text).to.equal(' ');
+        });
+
+        it('should prevent setting \'\'', function ()
+        {
+            const text = new PIXI.Text('');
+
+            expect(text.text).to.equal(' ');
         });
     });
 });

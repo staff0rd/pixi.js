@@ -2,12 +2,30 @@ import { DATA_URI, URL_FILE_EXTENSION, SVG_SIZE, VERSION } from '../const';
 import settings from '../settings';
 import EventEmitter from 'eventemitter3';
 import pluginTarget from './pluginTarget';
+import * as mixins from './mixin';
 import * as isMobile from 'ismobilejs';
+import removeItems from 'remove-array-items';
+import mapPremultipliedBlendModes from './mapPremultipliedBlendModes';
 
 let nextUid = 0;
 let saidHello = false;
 
 /**
+ * Generalized convenience utilities for PIXI.
+ * @example
+ * // Extend PIXI's internal Event Emitter.
+ * class MyEmitter extends PIXI.utils.EventEmitter {
+ *   constructor() {
+ *      super();
+ *      console.log("Emitter created!");
+ *   }
+ * }
+ *
+ * // Get info on current device
+ * console.log(PIXI.utils.isMobile);
+ *
+ * // Convert hex color to string
+ * console.log(PIXI.utils.hex2string(0xff00ff)); // returns: "#ff00ff"
  * @namespace PIXI.utils
  */
 export {
@@ -19,6 +37,15 @@ export {
      * @type {Object}
      */
     isMobile,
+
+    /**
+     * @see {@link https://github.com/mreinstein/remove-array-items}
+     *
+     * @memberof PIXI.utils
+     * @function removeItems
+     * @type {Object}
+     */
+    removeItems,
     /**
      * @see {@link https://github.com/primus/eventemitter3}
      *
@@ -33,6 +60,7 @@ export {
      * @type {mixin}
      */
     pluginTarget,
+    mixins,
 };
 
 /**
@@ -93,7 +121,7 @@ export function hex2string(hex)
  */
 export function rgb2hex(rgb)
 {
-    return (((rgb[0] * 255) << 16) + ((rgb[1] * 255) << 8) + (rgb[2] * 255));
+    return (((rgb[0] * 255) << 16) + ((rgb[1] * 255) << 8) + (rgb[2] * 255 | 0));
 }
 
 /**
@@ -316,47 +344,161 @@ export function sign(n)
 }
 
 /**
- * Remove a range of items from an array
+ * @todo Describe property usage
  *
  * @memberof PIXI.utils
- * @function removeItems
- * @param {Array<*>} arr The target array
- * @param {number} startIdx The index to begin removing from (inclusive)
- * @param {number} removeCount How many items to remove
+ * @private
  */
-export function removeItems(arr, startIdx, removeCount)
+export const TextureCache = Object.create(null);
+
+/**
+ * @todo Describe property usage
+ *
+ * @memberof PIXI.utils
+ * @private
+ */
+export const BaseTextureCache = Object.create(null);
+
+/**
+ * Destroys all texture in the cache
+ *
+ * @memberof PIXI.utils
+ * @function destroyTextureCache
+ */
+export function destroyTextureCache()
 {
-    const length = arr.length;
+    let key;
 
-    if (startIdx >= length || removeCount === 0)
+    for (key in TextureCache)
     {
-        return;
+        TextureCache[key].destroy();
     }
-
-    removeCount = (startIdx + removeCount > length ? length - startIdx : removeCount);
-
-    const len = length - removeCount;
-
-    for (let i = startIdx; i < len; ++i)
+    for (key in BaseTextureCache)
     {
-        arr[i] = arr[i + removeCount];
+        BaseTextureCache[key].destroy();
     }
-
-    arr.length = len;
 }
 
 /**
- * @todo Describe property usage
+ * Removes all textures from cache, but does not destroy them
  *
  * @memberof PIXI.utils
- * @private
+ * @function clearTextureCache
  */
-export const TextureCache = {};
+export function clearTextureCache()
+{
+    let key;
+
+    for (key in TextureCache)
+    {
+        delete TextureCache[key];
+    }
+    for (key in BaseTextureCache)
+    {
+        delete BaseTextureCache[key];
+    }
+}
 
 /**
- * @todo Describe property usage
+ * @memberof PIXI.utils
+ * @const premultiplyBlendMode
+ * @type {Array<number[]>} maps premultiply flag and blendMode to adjusted blendMode
+ */
+export const premultiplyBlendMode = mapPremultipliedBlendModes();
+
+/**
+ * changes blendMode according to texture format
  *
  * @memberof PIXI.utils
- * @private
+ * @function correctBlendMode
+ * @param {number} blendMode supposed blend mode
+ * @param {boolean} premultiplied  whether source is premultiplied
+ * @returns {number} true blend mode for this texture
  */
-export const BaseTextureCache = {};
+export function correctBlendMode(blendMode, premultiplied)
+{
+    return premultiplyBlendMode[premultiplied ? 1 : 0][blendMode];
+}
+
+/**
+ * premultiplies tint
+ *
+ * @param {number} tint integet RGB
+ * @param {number} alpha floating point alpha (0.0-1.0)
+ * @returns {number} tint multiplied by alpha
+ */
+export function premultiplyTint(tint, alpha)
+{
+    if (alpha === 1.0)
+    {
+        return (alpha * 255 << 24) + tint;
+    }
+    if (alpha === 0.0)
+    {
+        return 0;
+    }
+    let R = ((tint >> 16) & 0xFF);
+    let G = ((tint >> 8) & 0xFF);
+    let B = (tint & 0xFF);
+
+    R = ((R * alpha) + 0.5) | 0;
+    G = ((G * alpha) + 0.5) | 0;
+    B = ((B * alpha) + 0.5) | 0;
+
+    return (alpha * 255 << 24) + (R << 16) + (G << 8) + B;
+}
+
+/**
+ * combines rgb and alpha to out array
+ *
+ * @param {Float32Array|number[]} rgb input rgb
+ * @param {number} alpha alpha param
+ * @param {Float32Array} [out] output
+ * @param {boolean} [premultiply=true] do premultiply it
+ * @returns {Float32Array} vec4 rgba
+ */
+export function premultiplyRgba(rgb, alpha, out, premultiply)
+{
+    out = out || new Float32Array(4);
+    if (premultiply || premultiply === undefined)
+    {
+        out[0] = rgb[0] * alpha;
+        out[1] = rgb[1] * alpha;
+        out[2] = rgb[2] * alpha;
+    }
+    else
+    {
+        out[0] = rgb[0];
+        out[1] = rgb[1];
+        out[2] = rgb[2];
+    }
+    out[3] = alpha;
+
+    return out;
+}
+
+/**
+ * converts integer tint and float alpha to vec4 form, premultiplies by default
+ *
+ * @param {number} tint input tint
+ * @param {number} alpha alpha param
+ * @param {Float32Array} [out] output
+ * @param {boolean} [premultiply=true] do premultiply it
+ * @returns {Float32Array} vec4 rgba
+ */
+export function premultiplyTintToRgba(tint, alpha, out, premultiply)
+{
+    out = out || new Float32Array(4);
+    out[0] = ((tint >> 16) & 0xFF) / 255.0;
+    out[1] = ((tint >> 8) & 0xFF) / 255.0;
+    out[2] = (tint & 0xFF) / 255.0;
+    if (premultiply || premultiply === undefined)
+    {
+        out[0] *= alpha;
+        out[1] *= alpha;
+        out[2] *= alpha;
+    }
+    out[3] = alpha;
+
+    return out;
+}

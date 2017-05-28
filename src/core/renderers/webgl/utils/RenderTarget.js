@@ -124,7 +124,7 @@ export default class RenderTarget
          * @default PIXI.settings.SCALE_MODE
          * @see PIXI.SCALE_MODES
          */
-        this.scaleMode = scaleMode || settings.SCALE_MODE;
+        this.scaleMode = scaleMode !== undefined ? scaleMode : settings.SCALE_MODE;
 
         /**
          * Whether this object is the root element or not
@@ -203,7 +203,7 @@ export default class RenderTarget
     setFrame(destinationFrame, sourceFrame)
     {
         this.destinationFrame = destinationFrame || this.destinationFrame || this.defaultFrame;
-        this.sourceFrame = sourceFrame || this.sourceFrame || destinationFrame;
+        this.sourceFrame = sourceFrame || this.sourceFrame || this.destinationFrame;
     }
 
     /**

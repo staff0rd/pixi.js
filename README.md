@@ -36,30 +36,18 @@ Pixi.js has full [WebGL](https://en.wikipedia.org/wiki/WebGL) support and seamle
 - Wiki: Other misc tutorials and resources are [on the Wiki](https://github.com/pixijs/pixi.js/wiki/Resources).
 
 ### Community ###
-- Forums: Check out the [forum] (http://www.html5gamedevs.com/forum/15-pixijs/) and [Stackoverflow] (http://stackoverflow.com/search?q=pixi.js), both friendly places to ask your pixi questions.
+- Forums: Check out the [forum](http://www.html5gamedevs.com/forum/15-pixijs/) and [Stackoverflow](http://stackoverflow.com/search?q=pixi.js), both friendly places to ask your pixi questions.
 - Inspiration: Check out the [gallery](http://www.pixijs.com/gallery) to see some of the amazing things people have created!
 - Chat: You can join us on [Gitter](https://gitter.im/pixijs/pixi.js) To chat about Pixi. We also now have a Slack channel. If you would like to join it please Send me an email (mat@goodboydigital.com) and I will invite you in.
 
 
 ### Setup ###
 
-It's easy to get started with Pixi.js! Simply grab the pre-built versions from here:
+It's easy to get started with Pixi.js! Simply download a [prebuilt build](https://github.com/pixijs/pixi.js/wiki/FAQs#where-can-i-get-a-build)!
 
-Release Branch - Nice and stable Pixi.js
-- Unminified: [http://pixijs.download/release/pixi.js]
-- Minified: [http://pixijs.download/release/pixi.min.js]
+Alternatively, Pixi.js can be installed with [npm](https://docs.npmjs.com/getting-started/what-is-npm) or simply using a content delivery network (CDN) URL to embed Pixi.js directly on your HTML page.
 
-Develop Branch - The bleeding edge version of Pixi.js
-- Unminified: [http://pixijs.download/dev/pixi.js]
-- Minified: [http://pixijs.download/dev/pixi.min.js]
-
-Alternatively, Pixi.js can be installed with [Bower](https://bower.io/#getting-started), [npm](https://docs.npmjs.com/getting-started/what-is-npm) or simply using a content delivery network (CDN) URL to embed Pixi.js directly on your HTML page.
-
-#### Bower Install
-
-```
-$> bower install pixi.js
-```
+_Note: After v4.5.0, support for the [Bower](https://bower.io) package manager has been dropped. Please see the [release notes](https://github.com/pixijs/pixi.js/releases/tag/v4.5.0) for more information._
 
 #### NPM Install
 
@@ -70,10 +58,10 @@ $> npm install pixi.js
 #### CDN Install (via cdnjs)
 
 ```html
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/4.2.2/pixi.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/4.5.1/pixi.min.js"></script>
 ```
 
-_Note: `4.2.2` can be replaced by any [released](https://github.com/pixijs/pixi.js/releases) version._
+_Note: `4.5.1` can be replaced by any [released](https://github.com/pixijs/pixi.js/releases) version._
 
 ### Demos ###
 
@@ -130,7 +118,7 @@ before submitting changes.
 // and the root stage PIXI.Container.
 var app = new PIXI.Application();
 
-// The application will create a canvas element for you that you 
+// The application will create a canvas element for you that you
 // can then insert into the DOM.
 document.body.appendChild(app.view);
 
@@ -150,7 +138,7 @@ PIXI.loader.add('bunny', 'bunny.png').load(function(loader, resources) {
 
     // Add the bunny to the scene we are building.
     app.stage.addChild(bunny);
-    
+
     // Listen for frame updates
     app.ticker.add(function() {
          // each frame we spin the bunny around a bit
