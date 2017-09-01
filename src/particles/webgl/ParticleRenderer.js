@@ -6,7 +6,7 @@ import ParticleBuffer from './ParticleBuffer';
  * @author Mat Groves
  *
  * Big thanks to the very clever Matt DesLauriers <mattdesl> https://github.com/mattdesl/
- * for creating the original pixi version!
+ * for creating the original PixiJS version!
  * Also a thanks to https://github.com/bchevalier for tweaking the tint and alpha so that they now
  * share 4 bytes on the vertex buffer
  *
@@ -145,7 +145,7 @@ export default class ParticleRenderer extends core.ObjectRenderer
         const baseTexture = children[0]._texture.baseTexture;
 
         // if the uvs have not updated then no point rendering just yet!
-        this.renderer.setBlendMode(core.utils.correctBlendMode(container.blendMode, baseTexture.premultiplyAlpha));
+        this.renderer.setBlendMode(core.utils.correctBlendMode(container.blendMode, baseTexture.premultipliedAlpha));
 
         const gl = renderer.gl;
 
@@ -156,7 +156,7 @@ export default class ParticleRenderer extends core.ObjectRenderer
         this.shader.uniforms.projectionMatrix = m.toArray(true);
 
         this.shader.uniforms.uColor = core.utils.premultiplyRgba(container.tintRgb,
-            container.worldAlpha, baseTexture.premultiplyAlpha);
+            container.worldAlpha, this.shader.uniforms.uColor, baseTexture.premultipliedAlpha);
 
         // make sure the texture is bound..
         this.shader.uniforms.uSampler = renderer.bindTexture(baseTexture);

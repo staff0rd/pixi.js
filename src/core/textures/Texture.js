@@ -521,7 +521,11 @@ export default class Texture extends EventEmitter
         {
             for (let i = 0; i < texture.textureCacheIds.length; ++i)
             {
-                delete TextureCache[texture.textureCacheIds[i]];
+                // Check that texture matches the one being passed in before deleting it from the cache.
+                if (TextureCache[texture.textureCacheIds[i]] === texture)
+                {
+                    delete TextureCache[texture.textureCacheIds[i]];
+                }
             }
 
             texture.textureCacheIds.length = 0;
@@ -551,8 +555,8 @@ export default class Texture extends EventEmitter
         if (frame.x + frame.width > this.baseTexture.width || frame.y + frame.height > this.baseTexture.height)
         {
             throw new Error('Texture Error: frame does not fit inside the base Texture dimensions: '
-                + `X: ${frame.x} + ${frame.width} > ${this.baseTexture.width} `
-                + `Y: ${frame.y} + ${frame.height} > ${this.baseTexture.height}`);
+                + `X: ${frame.x} + ${frame.width} = ${frame.x + frame.width} > ${this.baseTexture.width} `
+                + `Y: ${frame.y} + ${frame.height} = ${frame.y + frame.height} > ${this.baseTexture.height}`);
         }
 
         // this.valid = frame && frame.width && frame.height && this.baseTexture.source && this.baseTexture.hasLoaded;

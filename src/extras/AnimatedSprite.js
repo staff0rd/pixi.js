@@ -32,7 +32,7 @@ export default class AnimatedSprite extends core.Sprite
     /**
      * @param {PIXI.Texture[]|FrameObject[]} textures - an array of {@link PIXI.Texture} or frame
      *  objects that make up the animation
-     * @param {boolean} [autoUpdate=true] - Whether use PIXI.ticker.shared to auto update animation time.
+     * @param {boolean} [autoUpdate=true] - Whether to use PIXI.ticker.shared to auto update animation time.
      */
     constructor(textures, autoUpdate)
     {
@@ -87,6 +87,13 @@ export default class AnimatedSprite extends core.Sprite
          * @member {Function}
          */
         this.onFrameChange = null;
+
+         /**
+         * Function to call when 'loop' is true, and an AnimatedSprite is played and loops around to start again
+         *
+         * @member {Function}
+         */
+        this.onLoop = null;
 
         /**
          * Elapsed time since animation has been started, used internally to display current texture
@@ -239,6 +246,18 @@ export default class AnimatedSprite extends core.Sprite
         }
         else if (previousFrame !== this.currentFrame)
         {
+            if (this.loop && this.onLoop)
+            {
+                if (this.animationSpeed > 0 && this.currentFrame < previousFrame)
+                {
+                    this.onLoop();
+                }
+                else if (this.animationSpeed < 0 && this.currentFrame > previousFrame)
+                {
+                    this.onLoop();
+                }
+            }
+
             this.updateTexture();
         }
     }
